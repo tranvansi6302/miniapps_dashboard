@@ -68,6 +68,14 @@ body {
 }
 
 /* Form Styles */
+.ant-form-item {
+  margin-bottom: 12px !important; /* Tighter vertical gap between inputs globally */
+}
+
+.ant-form-item-row .ant-form-item-label {
+  padding-bottom: 4px !important; /* Bring labels closer to inputs */
+}
+
 .ant-form-item-label > label {
   font-weight: 500 !important;
 }

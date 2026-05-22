@@ -55,7 +55,8 @@ export default function App() {
       fontSize: 13,
       fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       colorBgBase: '#090d16',
-      colorBgContainer: '#1e293b'
+      colorBgContainer: '#1e293b',
+      controlHeight: 34, // Beautifully sleek slightly taller inputs natively aligned
     },
     components: {
       Table: {
@@ -70,6 +71,9 @@ export default function App() {
       },
       Drawer: {
         colorBgElevated: '#0f172a',
+      },
+      Form: {
+        itemMarginBottom: 12, // Compact vertical margins globally
       }
     }
   };
