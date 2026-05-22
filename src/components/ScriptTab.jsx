@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Card, Badge, Tooltip, Switch, message, Popconfirm } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, CodeOutlined, FileTextOutlined, BranchesOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Form, Input, Card, Badge, Tooltip, Switch, message, Popconfirm, Row, Col } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, CodeOutlined, FileTextOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
+import { useNavigate, useParams } from 'react-router-dom';
 
-export default function ScriptTab({ currentUser }) {
+export default function ScriptTab({ currentUser, forceFormView = false }) {
   const [scripts, setScripts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingScript, setEditingScript] = useState(null);
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const { id } = useParams();
+
+  // If we are in form view and have an id, it's edit mode
+  const isEditing = forceFormView && !!id;
 
   const fetchScripts = async () => {
     setLoading(true);
@@ -23,32 +27,49 @@ export default function ScriptTab({ currentUser }) {
     }
   };
 
+  const fetchScriptDetails = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const data = await api.get(`/scripts/${id}`);
+      const script = data.data || data;
+      form.setFieldsValue({
+        type: script.type,
+        version: script.version,
+        description: script.description,
+        content: script.content,
+        is_actived: script.is_actived !== false && script.isActived !== false && script.is_actived !== 'false'
+      });
+    } catch (err) {
+      message.error('Không thể tải thông tin SDK script: ' + err.message);
+      navigate('/scripts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchScripts();
-  }, []);
+    if (forceFormView) {
+      if (isEditing) {
+        fetchScriptDetails();
+      } else {
+        form.resetFields();
+        form.setFieldsValue({
+          is_actived: true,
+          content: `// Hướng dẫn Adapter Script:\n// Nhận vào tham số và tương tác với Host Bridge\n(function() {\n  console.log("SDK Bridge initialized");\n  window.MiniAppBridge = {\n    call: function(action, params) {\n       console.log("Call bridge action:", action, params);\n       return Promise.resolve({ success: true });\n    }\n  };\n})();`
+        });
+      }
+    } else {
+      fetchScripts();
+    }
+  }, [forceFormView, id]);
 
   const handleCreateClick = () => {
     if (!currentUser) {
       message.warning('Bạn cần đăng nhập để tạo SDK Script mới!');
       return;
     }
-    setEditingScript(null);
-    form.resetFields();
-    form.setFieldsValue({
-      is_actived: true,
-      content: `// Hướng dẫn Adapter Script:
-// Nhận vào tham số và tương tác với Host Bridge
-(function() {
-  console.log("SDK Bridge initialized");
-  window.MiniAppBridge = {
-    call: function(action, params) {
-       console.log("Call bridge action:", action, params);
-       return Promise.resolve({ success: true });
-    }
-  };
-})();`
-    });
-    setIsModalOpen(true);
+    navigate('/scripts/new');
   };
 
   const handleEditClick = (script) => {
@@ -56,24 +77,16 @@ export default function ScriptTab({ currentUser }) {
       message.warning('Bạn cần đăng nhập để sửa đổi SDK Script!');
       return;
     }
-    setEditingScript(script);
-    form.setFieldsValue({
-      type: script.type,
-      version: script.version,
-      description: script.description,
-      content: script.content,
-      is_actived: script.is_actived !== false && script.isActived !== false && script.is_actived !== 'false'
-    });
-    setIsModalOpen(true);
+    navigate(`/scripts/${script.id}/edit`);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (idToDelete) => {
     if (!currentUser) {
       message.warning('Bạn cần đăng nhập để xóa SDK Script!');
       return;
     }
     try {
-      await api.delete(`/scripts/${id}`);
+      await api.delete(`/scripts/${idToDelete}`);
       message.success('Xóa SDK Script thành công!');
       fetchScripts();
     } catch (err) {
@@ -81,7 +94,7 @@ export default function ScriptTab({ currentUser }) {
     }
   };
 
-  const handleModalSubmit = async (values) => {
+  const handleFormSubmit = async (values) => {
     setSubmitting(true);
     try {
       const payload = {
@@ -92,15 +105,14 @@ export default function ScriptTab({ currentUser }) {
         is_actived: !!values.is_actived
       };
 
-      if (editingScript) {
-        await api.put(`/scripts/${editingScript.id}`, payload);
+      if (isEditing) {
+        await api.put(`/scripts/${id}`, payload);
         message.success('Cập nhật SDK Script thành công!');
       } else {
         await api.post('/scripts', payload);
         message.success('Thêm SDK Script mới thành công!');
       }
-      setIsModalOpen(false);
-      fetchScripts();
+      navigate('/scripts');
     } catch (err) {
       message.error(err.message || 'Lưu SDK Script thất bại.');
     } finally {
@@ -195,12 +207,138 @@ export default function ScriptTab({ currentUser }) {
     },
   ];
 
+  if (forceFormView) {
+    return (
+      <div style={{ padding: '0', width: '100%', margin: '0 auto' }}>
+        <Card
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Button
+                type="text"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate('/scripts')}
+                style={{ color: '#94a3b8', padding: '0 8px' }}
+              />
+              <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>
+                {isEditing ? 'Soạn thảo Bridge Script' : 'Tạo mới Bridge Script'}
+              </span>
+            </div>
+          }
+          bordered={false}
+          style={{
+            background: 'rgba(30, 41, 59, 0.6)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '5px',
+          }}
+          loading={loading}
+        >
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleFormSubmit}
+            requiredMark={false}
+          >
+            <Row gutter={24}>
+              <Col span={8}>
+                <Form.Item
+                  name="type"
+                  label={<span style={{ color: '#e2e8f0' }}>Loại SDK Bridge (Type Key)</span>}
+                  rules={[
+                    { required: true, message: 'Nhập loại SDK!' },
+                    { pattern: /^[a-z0-9-_.]+$/, message: 'Mã chỉ bao gồm chữ thường không dấu, số, dấu chấm, gạch ngang/dưới!' }
+                  ]}
+                >
+                  <Input
+                    prefix={<CodeOutlined style={{ color: '#94a3b8' }} />}
+                    placeholder="Ví dụ: payment, tracking, notification"
+                    disabled={isEditing}
+                    style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="version"
+                  label={<span style={{ color: '#e2e8f0' }}>Phiên bản SDK</span>}
+                  rules={[{ required: true, message: 'Nhập phiên bản!' }]}
+                >
+                  <Input
+                    prefix={<FileTextOutlined style={{ color: '#94a3b8' }} />}
+                    placeholder="Ví dụ: 1.2.0"
+                    style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="description"
+                  label={<span style={{ color: '#e2e8f0' }}>Mô tả chức năng</span>}
+                >
+                  <Input.TextArea
+                    rows={4}
+                    placeholder="Script này giúp Mini App gọi các cổng thanh toán của Host App"
+                    style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="is_actived"
+                  label={<span style={{ color: '#e2e8f0' }}>Kích hoạt Hoạt động</span>}
+                  valuePropName="checked"
+                >
+                  <Switch />
+                </Form.Item>
+              </Col>
+              
+              <Col span={16}>
+                <Form.Item
+                  name="content"
+                  label={<span style={{ color: '#e2e8f0' }}>Nội dung mã Adapter JavaScript (JS)</span>}
+                  rules={[{ required: true, message: 'Nhập mã nguồn JS!' }]}
+                  style={{ marginBottom: '16px' }}
+                >
+                  <Input.TextArea
+                    rows={18}
+                    placeholder="// Write your JavaScript adapter code here..."
+                    style={{
+                      fontFamily: '"Fira Code", Consolas, Monaco, "Courier New", monospace',
+                      fontSize: '13px',
+                      background: '#090d16',
+                      color: '#4ade80',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      lineHeight: '1.6',
+                      borderRadius: '5px'
+                    }}
+                  />
+                </Form.Item>
+
+                <Form.Item style={{ marginBottom: 0, marginTop: '24px', textAlign: 'right' }}>
+                  <Space>
+                    <Button onClick={() => navigate('/scripts')} style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}>
+                      Hủy bỏ
+                    </Button>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      loading={submitting}
+                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
+                    >
+                      {isEditing ? 'Cập nhật' : 'Thêm mới'}
+                    </Button>
+                  </Space>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div >
+    <div>
       <Card
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-
             <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>Quản lý SDK Bridge Adapter Scripts</span>
           </div>
         }
@@ -249,115 +387,6 @@ export default function ScriptTab({ currentUser }) {
           size="small"
         />
       </Card>
-
-      <Modal
-        title={
-          <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>
-            {editingScript ? 'Soạn thảo Bridge Script' : 'Tạo mới Bridge Script'}
-          </span>
-        }
-        open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        footer={null}
-        destroyOnClose
-        width={800}
-        style={{ top: 40 }}
-        bodyStyle={{ padding: '20px 0' }}
-        wrapClassName="dark-modal"
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleModalSubmit}
-          requiredMark={false}
-        >
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <Form.Item
-              name="type"
-              label={<span style={{ color: '#e2e8f0' }}>Loại SDK Bridge (Type Key)</span>}
-              rules={[
-                { required: true, message: 'Nhập loại SDK!' },
-                { pattern: /^[a-z0-9-_.]+$/, message: 'Mã chỉ bao gồm chữ thường không dấu, số, dấu chấm, gạch ngang/dưới!' }
-              ]}
-              style={{ flex: 1 }}
-            >
-              <Input
-                prefix={<CodeOutlined style={{ color: '#94a3b8' }} />}
-                placeholder="Ví dụ: payment, tracking, notification"
-                disabled={!!editingScript}
-                style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="version"
-              label={<span style={{ color: '#e2e8f0' }}>Phiên bản SDK</span>}
-              rules={[{ required: true, message: 'Nhập phiên bản!' }]}
-              style={{ width: '200px' }}
-            >
-              <Input
-                prefix={<FileTextOutlined style={{ color: '#94a3b8' }} />}
-                placeholder="Ví dụ: 1.2.0"
-                style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-              />
-            </Form.Item>
-          </div>
-
-          <Form.Item
-            name="description"
-            label={<span style={{ color: '#e2e8f0' }}>Mô tả chức năng</span>}
-          >
-            <Input
-              placeholder="Script này giúp Mini App gọi các cổng thanh toán của Host App"
-              style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="content"
-            label={<span style={{ color: '#e2e8f0' }}>Nội dung mã Adapter JavaScript (JS)</span>}
-            rules={[{ required: true, message: 'Nhập mã nguồn JS!' }]}
-          >
-            <Input.TextArea
-              rows={12}
-              placeholder="// Write your JavaScript adapter code here..."
-              style={{
-                fontFamily: '"Fira Code", Consolas, Monaco, "Courier New", monospace',
-                fontSize: '13px',
-                background: '#090d16',
-                color: '#4ade80',
-                border: '1px solid rgba(255,255,255,0.1)',
-                lineHeight: '1.6',
-                borderRadius: '5px'
-              }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="is_actived"
-            label={<span style={{ color: '#e2e8f0' }}>Kích hoạt Hoạt động</span>}
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0, marginTop: '24px', textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => setIsModalOpen(false)} style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}>
-                Hủy bỏ
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={submitting}
-                style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
-              >
-                {editingScript ? 'Cập nhật' : 'Thêm mới'}
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 }

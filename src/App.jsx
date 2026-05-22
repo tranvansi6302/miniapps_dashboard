@@ -114,6 +114,8 @@ export default function App() {
             <Route path="categories" element={<CategoryTab currentUser={currentUser} />} />
             <Route path="users" element={<UserTab currentUser={currentUser} />} />
             <Route path="scripts" element={<ScriptTab currentUser={currentUser} />} />
+            <Route path="scripts/new" element={<ScriptTab currentUser={currentUser} forceFormView={true} />} />
+            <Route path="scripts/:id/edit" element={<ScriptTab currentUser={currentUser} forceFormView={true} />} />
             <Route path="*" element={<Navigate to="/mini-apps" replace />} />
           </Route>
         </Routes>
