@@ -275,8 +275,10 @@ export default function DashboardLayout({ currentUser, onLogout }) {
                     ...item,
                     style: {
                       borderRadius: '5px',
-                      margin: '4px 12px',
+                      margin: '2px 12px',
                       width: 'calc(100% - 24px)',
+                      height: '34px',
+                      lineHeight: '34px',
                     }
                   }))}
                 />
@@ -317,8 +319,10 @@ export default function DashboardLayout({ currentUser, onLogout }) {
                 ...item,
                 style: {
                   borderRadius: '5px',
-                  margin: '4px 12px',
+                  margin: '2px 12px',
                   width: 'calc(100% - 24px)',
+                  height: '34px',
+                  lineHeight: '34px',
                 }
               }))}
               className="custom-menu"
