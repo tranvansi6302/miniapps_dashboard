@@ -1,0 +1,176 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #090d16;
+  color: #f8fafc;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  width: 100vw;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Custom Table Styles for Glassmorphism Look */
+.custom-table .ant-table {
+  background: transparent !important;
+}
+
+.custom-table .ant-table-thead > tr > th {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  font-weight: 600 !important;
+  padding: 6px 10px !important; /* Extremely Compact header padding */
+  font-size: 13px !important;
+}
+
+.custom-table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+  padding: 6px 10px !important; /* Extremely Compact cell padding */
+  font-size: 13px !important;
+}
+
+.custom-table .ant-table-tbody > tr:hover > td {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Dark Modal & Drawer custom stylings */
+.dark-modal .ant-modal-content {
+  background: rgba(30, 41, 59, 0.8) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 5px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark-modal .ant-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  padding-bottom: 12px !important;
+}
+
+.dark-modal .ant-modal-close {
+  color: #94a3b8 !important;
+}
+
+.dark-modal .ant-modal-close:hover {
+  color: #fff !important;
+}
+
+/* Form Styles */
+.ant-form-item-label > label {
+  font-weight: 500 !important;
+}
+
+.ant-input, .ant-input-password, .ant-select-selector {
+  transition: all 0.2s ease !important;
+}
+
+.ant-input:focus, .ant-input-focused, .ant-input-password:focus, .ant-input-password-focused {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Custom Scrollbar for Code Textarea and Scrollable Containers */
+textarea::-webkit-scrollbar,
+div::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+textarea::-webkit-scrollbar-track,
+div::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+textarea::-webkit-scrollbar-thumb,
+div::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover,
+div::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+
+/* Menu transitions */
+.custom-menu .ant-menu-item-selected {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(79, 70, 229, 0.25) 100%) !important;
+  color: #a5b4fc !important;
+  border-right: 3px solid #6366f1 !important;
+}
+
+/* Workspace Navigation Hover Styles */
+.workspace-link {
+  transition: opacity 0.2s ease;
+}
+.workspace-link:hover {
+  opacity: 0.85;
+}
+.workspace-link:hover .workspace-link-name {
+  color: #818cf8 !important;
+  text-decoration: underline;
+}
+
+/* Premium Auth Inputs */
+.auth-input {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  border-radius: 5px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.auth-input:hover {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+}
+
+.auth-input:focus,
+.auth-input-focused,
+.auth-input:focus-within {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25) !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
+/* Premium Auth Action Buttons */
+.auth-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  border: none !important;
+  height: 45px !important;
+  border-radius: 5px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  color: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.auth-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45) !important;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+  filter: brightness(1.1);
+  color: #fff !important;
+}
+
+.auth-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3) !important;
+}
+
+
