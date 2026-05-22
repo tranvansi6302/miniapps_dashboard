@@ -72,7 +72,7 @@ export default function CategoryTab({ currentUser }) {
       const payload = {
         name: values.name,
         code: values.code,
-        iconUrl: values.iconUrl,
+        icon_url: values.iconUrl,
       };
 
       if (editingCategory) {
@@ -285,6 +285,7 @@ export default function CategoryTab({ currentUser }) {
           <Form.Item
             name="iconUrl"
             label={<span style={{ color: '#e2e8f0' }}>Đường dẫn Icon (URL)</span>}
+            rules={[{ required: true, message: 'Vui lòng nhập đường dẫn Icon cho danh mục!' }]}
           >
             <Input
               prefix={<LinkOutlined style={{ color: '#94a3b8' }} />}
