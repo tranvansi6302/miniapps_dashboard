@@ -277,8 +277,8 @@ export default function DashboardLayout({ currentUser, onLogout }) {
                       borderRadius: '5px',
                       margin: '2px 12px',
                       width: 'calc(100% - 24px)',
-                      height: '34px',
-                      lineHeight: '34px',
+                      height: '36px',
+                      lineHeight: '36px',
                     }
                   }))}
                 />
@@ -321,8 +321,8 @@ export default function DashboardLayout({ currentUser, onLogout }) {
                   borderRadius: '5px',
                   margin: '2px 12px',
                   width: 'calc(100% - 24px)',
-                  height: '34px',
-                  lineHeight: '34px',
+                  height: '36px',
+                  lineHeight: '36px',
                 }
               }))}
               className="custom-menu"
