@@ -7,6 +7,14 @@ import { api } from '../services/api';
 const { Option } = Select;
 
 export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView }) {
+  const PERMISSIONS_LIST = [
+    { value: 'camera', label: 'Camera' },
+    { value: 'location', label: 'Vị trí (Location)' },
+    { value: 'storage', label: 'Lưu trữ (Storage)' },
+    { value: 'microphone', label: 'Microphone' },
+    { value: 'push_notification', label: 'Thông báo đẩy' }
+  ];
+
   const [apps, setApps] = useState([]);
   const [categories, setCategories] = useState([]);
   const [users, setUsers] = useState([]); // List of all users for bulk membership
@@ -87,6 +95,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               is_actived: appData.is_actived !== false && appData.isActived !== false && appData.is_actived !== 'false',
               terms_url: appData.terms_url || appData.termsUrl,
               privacy_policy_url: appData.privacy_policy_url || appData.privacyPolicyUrl,
+              permissions: appData.permissions || [],
             });
             
             // Fetch membership list
@@ -135,6 +144,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             is_actived: app.is_actived !== false && app.isActived !== false && app.is_actived !== 'false',
             terms_url: app.terms_url || app.termsUrl,
             privacy_policy_url: app.privacy_policy_url || app.privacyPolicyUrl,
+            permissions: app.permissions || [],
           });
         }
       } else if (!id) {
@@ -143,7 +153,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         form.setFieldsValue({
           requires_auth: false,
           is_hidden: false,
-          is_actived: true
+          is_actived: true,
+          permissions: [],
         });
       }
     }
@@ -243,6 +254,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         requires_auth: editingApp.requires_auth === true || editingApp.requiresAuth === true,
         terms_url: editingApp.terms_url || editingApp.termsUrl || '',
         privacy_policy_url: editingApp.privacy_policy_url || editingApp.privacyPolicyUrl || '',
+        permissions: editingApp.permissions || [],
         is_hidden: fieldName === 'is_hidden' ? newValue : (editingApp.is_hidden === true || editingApp.isHidden === true),
         is_actived: fieldName === 'is_actived' ? newValue : (editingApp.is_actived !== false && editingApp.isActived !== false),
       };
@@ -288,6 +300,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           is_actived: appData.is_actived !== false && appData.isActived !== false,
           terms_url: appData.terms_url || appData.termsUrl,
           privacy_policy_url: appData.privacy_policy_url || appData.privacyPolicyUrl,
+          permissions: appData.permissions || [],
         });
       }
     } catch (err) {
@@ -313,7 +326,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         is_hidden: isWorkspaceView ? (editingApp.is_hidden === true || editingApp.isHidden === true) : !!values.is_hidden,
         is_actived: isWorkspaceView ? (editingApp.is_actived !== false && editingApp.isActived !== false) : !!values.is_actived,
         terms_url: values.terms_url,
-        privacy_policy_url: values.privacy_policy_url
+        privacy_policy_url: values.privacy_policy_url,
+        permissions: values.permissions || [],
       };
 
       if (editingApp) {
@@ -484,6 +498,20 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         const catId = record.category_id || record.categoryId;
         return <Tag color="blue">{getCategoryName(catId)}</Tag>;
       }
+    },
+    {
+      title: 'Quyền',
+      key: 'permissions',
+      render: (_, record) => (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '180px' }}>
+          {(record.permissions || []).map(p => (
+            <Tag color="cyan" key={p} style={{ margin: 0, fontSize: '11px' }}>
+              {PERMISSIONS_LIST.find(pl => pl.value === p)?.label || p}
+            </Tag>
+          ))}
+          {(!record.permissions || record.permissions.length === 0) && <span style={{ color: '#64748b', fontSize: '12px' }}>Không có</span>}
+        </div>
+      )
     },
     {
       title: 'Đường dẫn App',
@@ -759,6 +787,23 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                       label={<span style={{ color: '#e2e8f0' }}>Mô tả chi tiết</span>}
                     >
                       <Input.TextArea placeholder="Mô tả đầy đủ của Mini App" rows={3} style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Row gutter={12}>
+                  <Col span={24}>
+                    <Form.Item
+                      name="permissions"
+                      label={<span style={{ color: '#e2e8f0' }}>Quyền truy cập (Permissions)</span>}
+                    >
+                      <Select
+                        mode="multiple"
+                        placeholder="Chọn các quyền yêu cầu..."
+                        style={{ width: '100%' }}
+                        dropdownStyle={{ background: '#1e293b' }}
+                        options={PERMISSIONS_LIST}
+                      />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -1233,6 +1278,23 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                     label={<span style={{ color: '#e2e8f0' }}>Mô tả chi tiết</span>}
                   >
                     <Input.TextArea placeholder="Mô tả đầy đủ của Mini App" rows={3} style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Row gutter={12}>
+                <Col span={24}>
+                  <Form.Item
+                    name="permissions"
+                    label={<span style={{ color: '#e2e8f0' }}>Quyền truy cập (Permissions)</span>}
+                  >
+                    <Select
+                      mode="multiple"
+                      placeholder="Chọn các quyền yêu cầu..."
+                      style={{ width: '100%' }}
+                      dropdownStyle={{ background: '#1e293b' }}
+                      options={PERMISSIONS_LIST}
+                    />
                   </Form.Item>
                 </Col>
               </Row>
