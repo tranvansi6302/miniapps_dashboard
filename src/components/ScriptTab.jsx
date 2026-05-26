@@ -1,27 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Form, Input, Card, Badge, Tooltip, Switch, message, Popconfirm, Row, Col } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, CodeOutlined, FileTextOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Form, Input, Card, Badge, Tooltip, message, Row, Col, Typography, Modal } from 'antd';
+import { PlusOutlined, CodeOutlined, FileTextOutlined, ArrowLeftOutlined, ReloadOutlined, EyeOutlined, CopyOutlined, HistoryOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import { useNavigate, useParams } from 'react-router-dom';
 
+const { Title, Text, Paragraph } = Typography;
+
 export default function ScriptTab({ currentUser, forceFormView = false }) {
-  const [scripts, setScripts] = useState([]);
+  const [activeScript, setActiveScript] = useState(null);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [previewScript, setPreviewScript] = useState(null);
+  const [previewVisible, setPreviewVisible] = useState(false);
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // If we are in form view and have an id, it's edit mode
+  // If forceFormView is true, we are creating a new version.
+  // If we have an id in the URL, we are creating a new version based on a historical version (pre-fills its content).
   const isEditing = forceFormView && !!id;
 
-  const fetchScripts = async () => {
+  const fetchActiveAndHistory = async () => {
     setLoading(true);
     try {
-      const data = await api.get('/scripts');
-      setScripts(data.data || data);
+      // Fetch active script
+      const activeRes = await api.get('/scripts');
+      setActiveScript(activeRes.data);
+
+      // Fetch history
+      const historyRes = await api.get('/scripts/history');
+      setHistory(historyRes.data || []);
     } catch (err) {
-      message.error('Không thể tải các SDK bridge scripts: ' + err.message);
+      message.error('Không thể tải dữ liệu SDK scripts: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -33,16 +44,42 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
     try {
       const data = await api.get(`/scripts/${id}`);
       const script = data.data || data;
+      // Pre-fill form fields
       form.setFieldsValue({
-        type: script.type,
-        version: script.version,
-        description: script.description,
-        content: script.content,
-        is_actived: script.is_actived !== false && script.isActived !== false && script.is_actived !== 'false'
+        version: '', // Let them enter the new version number
+        description: `Dựa trên phiên bản v${script.version} - `,
+        content: script.content
       });
     } catch (err) {
-      message.error('Không thể tải thông tin SDK script: ' + err.message);
+      message.error('Không thể tải thông tin bản ghi lịch sử: ' + err.message);
       navigate('/scripts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchActiveForNewForm = async () => {
+    setLoading(true);
+    try {
+      const activeRes = await api.get('/scripts');
+      const active = activeRes.data;
+      if (active) {
+        // Prefill new form with latest active code
+        form.setFieldsValue({
+          version: '',
+          description: '',
+          content: active.content
+        });
+      } else {
+        // Default boilerplate if no script exists yet
+        form.setFieldsValue({
+          version: '1.0.0',
+          description: 'Phiên bản khởi tạo đầu tiên',
+          content: `// Hướng dẫn Adapter Script:\n// Nhận vào tham số và tương tác với Host Bridge\n(function() {\n  console.log("SDK Bridge initialized");\n  window.MiniAppBridge = {\n    call: function(action, params) {\n       console.log("Call bridge action:", action, params);\n       return Promise.resolve({ success: true });\n    }\n  };\n})();`
+        });
+      }
+    } catch (err) {
+      message.error('Lỗi khi tải mã nguồn hiện tại: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -54,43 +91,39 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
         fetchScriptDetails();
       } else {
         form.resetFields();
-        form.setFieldsValue({
-          is_actived: true,
-          content: `// Hướng dẫn Adapter Script:\n// Nhận vào tham số và tương tác với Host Bridge\n(function() {\n  console.log("SDK Bridge initialized");\n  window.MiniAppBridge = {\n    call: function(action, params) {\n       console.log("Call bridge action:", action, params);\n       return Promise.resolve({ success: true });\n    }\n  };\n})();`
-        });
+        fetchActiveForNewForm();
       }
     } else {
-      fetchScripts();
+      fetchActiveAndHistory();
     }
   }, [forceFormView, id]);
 
   const handleCreateClick = () => {
     if (!currentUser) {
-      message.warning('Bạn cần đăng nhập để tạo SDK Script mới!');
+      message.warning('Bạn cần đăng nhập để tạo phiên bản SDK Script mới!');
       return;
     }
     navigate('/scripts/new');
   };
 
-  const handleEditClick = (script) => {
+  const handleCreateFromVersion = (versionId) => {
     if (!currentUser) {
-      message.warning('Bạn cần đăng nhập để sửa đổi SDK Script!');
+      message.warning('Bạn cần đăng nhập để thao tác!');
       return;
     }
-    navigate(`/scripts/${script.id}/edit`);
+    navigate(`/scripts/${versionId}/edit`);
   };
 
-  const handleDelete = async (idToDelete) => {
-    if (!currentUser) {
-      message.warning('Bạn cần đăng nhập để xóa SDK Script!');
-      return;
-    }
+  const handleViewDetails = async (versionId) => {
+    setLoading(true);
     try {
-      await api.delete(`/scripts/${idToDelete}`);
-      message.success('Xóa SDK Script thành công!');
-      fetchScripts();
+      const res = await api.get(`/scripts/${versionId}`);
+      setPreviewScript(res.data);
+      setPreviewVisible(true);
     } catch (err) {
-      message.error(err.message || 'Không thể xóa SDK Script.');
+      message.error('Không thể tải chi tiết phiên bản: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -98,23 +131,17 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
     setSubmitting(true);
     try {
       const payload = {
-        type: values.type,
         version: values.version,
         description: values.description,
-        content: values.content,
-        is_actived: !!values.is_actived
+        content: values.content
       };
 
-      if (isEditing) {
-        await api.put(`/scripts/${id}`, payload);
-        message.success('Cập nhật SDK Script thành công!');
-      } else {
-        await api.post('/scripts', payload);
-        message.success('Thêm SDK Script mới thành công!');
-      }
+      // Always create a new version (POST) to maintain change history
+      await api.post('/scripts', payload);
+      message.success(`Thêm phiên bản mới v${values.version} thành công!`);
       navigate('/scripts');
     } catch (err) {
-      message.error(err.message || 'Lưu SDK Script thất bại.');
+      message.error(err.message || 'Lưu phiên bản mới thất bại.');
     } finally {
       setSubmitting(false);
     }
@@ -129,78 +156,48 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
       sorter: (a, b) => a.id - b.id,
     },
     {
-      title: 'Loại SDK (Type)',
-      dataIndex: 'type',
-      key: 'type',
-      render: (text) => (
-        <span style={{ fontWeight: 600, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CodeOutlined style={{ color: '#10b981' }} />
-          <code>{text}</code>
-        </span>
-      ),
-    },
-    {
-      title: 'Mô tả SDK',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-      render: (text) => <span style={{ color: '#94a3b8' }}>{text || '—'}</span>
-    },
-    {
       title: 'Phiên bản',
       dataIndex: 'version',
       key: 'version',
       width: 120,
-      render: (v) => <code style={{ color: '#eab308' }}>v{v}</code>
+      render: (v) => <code style={{ color: '#eab308', fontWeight: 600 }}>v{v}</code>
     },
     {
-      title: 'Trạng thái',
-      dataIndex: 'is_actived',
-      key: 'is_actived',
-      width: 150,
-      render: (isActive) => {
-        const active = isActive !== false && isActive !== 'false';
-        return active ? (
-          <Badge status="success" text={<span style={{ color: '#4ade80' }}>Đang kích hoạt</span>} />
-        ) : (
-          <Badge status="error" text={<span style={{ color: '#f87171' }}>Tạm tắt</span>} />
-        );
-      },
+      title: 'Mô tả thay đổi',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+      render: (text) => <span style={{ color: '#cbd5e1' }}>{text || '—'}</span>
+    },
+    {
+      title: 'Ngày cập nhật',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 220,
+      render: (date) => <span style={{ color: '#94a3b8' }}>{new Date(date).toLocaleString('vi-VN')}</span>
     },
     {
       title: 'Hành động',
       key: 'actions',
-      width: 200,
+      width: 180,
       render: (_, record) => {
-        const isActive = record.is_actived !== false && record.is_actived !== 'false';
         return (
           <Space size="middle">
-            <Tooltip title={currentUser ? "Chỉnh sửa code" : "Yêu cầu đăng nhập"}>
+            <Tooltip title="Xem chi tiết mã nguồn">
               <Button
                 type="text"
-                icon={<EditOutlined style={{ color: currentUser ? '#6366f1' : '#64748b' }} />}
-                onClick={() => handleEditClick(record)}
+                icon={<EyeOutlined style={{ color: '#38bdf8' }} />}
+                onClick={() => handleViewDetails(record.id)}
               />
             </Tooltip>
-            {isActive && (
-              <Tooltip title={currentUser ? "Khóa/Xóa SDK Script" : "Yêu cầu đăng nhập"}>
-                <Popconfirm
-                  title="Xác nhận xóa SDK script này?"
-                  description="Các Mini App đang phụ thuộc vào script này có thể không hoạt động chính xác."
-                  onConfirm={() => handleDelete(record.id)}
-                  okText="Xóa"
-                  cancelText="Hủy"
-                  disabled={!currentUser}
-                >
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined style={{ color: currentUser ? '#ef4444' : '#64748b' }} />}
-                    disabled={!currentUser}
-                  />
-                </Popconfirm>
-              </Tooltip>
-            )}
+            <Tooltip title={currentUser ? "Tạo bản mới dựa trên bản này" : "Yêu cầu đăng nhập để thao tác"}>
+              <Button
+                type="text"
+                icon={<CopyOutlined style={{ color: currentUser ? '#a5b4fc' : '#64748b' }} />}
+                onClick={() => handleCreateFromVersion(record.id)}
+                disabled={!currentUser}
+              />
+            </Tooltip>
           </Space>
         );
       },
@@ -220,7 +217,7 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
                 style={{ color: '#94a3b8', padding: '0 8px' }}
               />
               <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>
-                {isEditing ? 'Soạn thảo Bridge Script' : 'Tạo mới Bridge Script'}
+                {isEditing ? 'Tạo phiên bản mới từ lịch sử' : 'Phát hành phiên bản Bridge Script mới'}
               </span>
             </div>
           }
@@ -240,27 +237,14 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
             requiredMark={false}
           >
             <Row gutter={24}>
-              <Col span={8}>
-                <Form.Item
-                  name="type"
-                  label={<span style={{ color: '#e2e8f0' }}>Loại SDK Bridge (Type Key)</span>}
-                  rules={[
-                    { required: true, message: 'Nhập loại SDK!' },
-                    { pattern: /^[a-z0-9-_.]+$/, message: 'Mã chỉ bao gồm chữ thường không dấu, số, dấu chấm, gạch ngang/dưới!' }
-                  ]}
-                >
-                  <Input
-                    prefix={<CodeOutlined style={{ color: '#94a3b8' }} />}
-                    placeholder="Ví dụ: payment, tracking, notification"
-                    disabled={isEditing}
-                    style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-                  />
-                </Form.Item>
-
+              <Col xs={24} md={8}>
                 <Form.Item
                   name="version"
-                  label={<span style={{ color: '#e2e8f0' }}>Phiên bản SDK</span>}
-                  rules={[{ required: true, message: 'Nhập phiên bản!' }]}
+                  label={<span style={{ color: '#e2e8f0' }}>Số phiên bản (Version)</span>}
+                  rules={[
+                    { required: true, message: 'Nhập số phiên bản!' },
+                    { pattern: /^[0-9.]+$/, message: 'Chỉ bao gồm số và dấu chấm (ví dụ: 1.2.0)' }
+                  ]}
                 >
                   <Input
                     prefix={<FileTextOutlined style={{ color: '#94a3b8' }} />}
@@ -271,25 +255,25 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
 
                 <Form.Item
                   name="description"
-                  label={<span style={{ color: '#e2e8f0' }}>Mô tả chức năng</span>}
+                  label={<span style={{ color: '#e2e8f0' }}>Mô tả các thay đổi (Changelog)</span>}
+                  rules={[{ required: true, message: 'Vui lòng nhập mô tả thay đổi!' }]}
                 >
                   <Input.TextArea
-                    rows={4}
-                    placeholder="Script này giúp Mini App gọi các cổng thanh toán của Host App"
+                    rows={6}
+                    placeholder="Mô tả ngắn gọn những điểm mới hoặc sửa đổi trong phiên bản script này để lưu lại lịch sử..."
                     style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
                   />
                 </Form.Item>
-
-                <Form.Item
-                  name="is_actived"
-                  label={<span style={{ color: '#e2e8f0' }}>Kích hoạt Hoạt động</span>}
-                  valuePropName="checked"
-                >
-                  <Switch />
-                </Form.Item>
+                
+                <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '6px', border: '1px dashed rgba(99, 102, 241, 0.2)' }}>
+                  <Title level={5} style={{ color: '#a5b4fc', fontSize: '13px', marginTop: 0 }}>Lưu ý về lịch sử</Title>
+                  <Paragraph style={{ color: '#94a3b8', fontSize: '12px', marginBottom: 0, lineHeight: 1.5 }}>
+                    Mỗi lần phát hành sẽ tạo thêm 1 bản ghi lịch sử và phiên bản mới nhất sẽ ngay lập tức được đặt làm bản script hoạt động (Active) cho toàn hệ thống Mini App.
+                  </Paragraph>
+                </div>
               </Col>
               
-              <Col span={16}>
+              <Col xs={24} md={16}>
                 <Form.Item
                   name="content"
                   label={<span style={{ color: '#e2e8f0' }}>Nội dung mã Adapter JavaScript (JS)</span>}
@@ -322,7 +306,7 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
                       loading={submitting}
                       style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
                     >
-                      {isEditing ? 'Cập nhật' : 'Thêm mới'}
+                      Phát hành (Release)
                     </Button>
                   </Space>
                 </Form.Item>
@@ -336,37 +320,146 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
 
   return (
     <div>
+      {/* 1. Current Active Script Display */}
+      {activeScript ? (
+        <Card
+          bordered={false}
+          style={{
+            background: 'rgba(30, 41, 59, 0.4)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: '8px',
+            marginBottom: '24px'
+          }}
+          loading={loading}
+        >
+          <Row gutter={[24, 24]}>
+            <Col xs={24} md={10} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <Badge count="Active" style={{ backgroundColor: '#10b981', boxShadow: 'none' }} />
+                  <span style={{ fontSize: '24px', fontWeight: 700, color: '#eab308' }}>
+                    v{activeScript.version}
+                  </span>
+                </div>
+                
+                <div style={{ marginBottom: '16px' }}>
+                  <Text style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Mô tả phiên bản:</Text>
+                  <Paragraph style={{ color: '#f1f5f9', fontSize: '13px', background: 'rgba(15, 23, 42, 0.4)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', marginBottom: 0 }}>
+                    {activeScript.description || 'Không có mô tả.'}
+                  </Paragraph>
+                </div>
+
+                <div style={{ marginBottom: '24px' }}>
+                  <Text style={{ color: '#94a3b8', display: 'block', marginBottom: '2px' }}>Thời gian cập nhật:</Text>
+                  <Text style={{ color: '#cbd5e1', fontWeight: 500 }}>
+                    {new Date(activeScript.created_at).toLocaleString('vi-VN')}
+                  </Text>
+                </div>
+              </div>
+
+              <Space>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleCreateClick}
+                  style={{
+                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    border: 'none',
+                    fontWeight: 600,
+                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+                  }}
+                >
+                  Tạo Phiên Bản Mới
+                </Button>
+                <Button
+                  type="default"
+                  icon={<ReloadOutlined />}
+                  onClick={fetchActiveAndHistory}
+                  loading={loading}
+                  style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  Làm mới
+                </Button>
+              </Space>
+            </Col>
+            <Col xs={24} md={14}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <Text style={{ color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CodeOutlined style={{ color: '#6366f1' }} />
+                  Mã nguồn hiện tại (Active JavaScript SDK)
+                </Text>
+                <Button
+                  type="text"
+                  icon={<CopyOutlined style={{ color: '#94a3b8' }} />}
+                  onClick={() => {
+                    navigator.clipboard.writeText(activeScript.content);
+                    message.success('Đã sao chép mã nguồn vào clipboard!');
+                  }}
+                  style={{ padding: '0 8px' }}
+                >
+                  <span style={{ color: '#94a3b8', fontSize: '12px' }}>Sao chép</span>
+                </Button>
+              </div>
+              <Input.TextArea
+                readOnly
+                value={activeScript.content}
+                rows={9}
+                style={{
+                  fontFamily: '"Fira Code", Consolas, Monaco, "Courier New", monospace',
+                  fontSize: '12px',
+                  background: '#090d16',
+                  color: '#4ade80',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  lineHeight: '1.5',
+                  borderRadius: '6px',
+                  resize: 'none'
+                }}
+              />
+            </Col>
+          </Row>
+        </Card>
+      ) : (
+        <Card
+          bordered={false}
+          style={{
+            background: 'rgba(30, 41, 59, 0.4)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: '8px',
+            marginBottom: '24px',
+            textAlign: 'center',
+            padding: '40px 20px'
+          }}
+          loading={loading}
+        >
+          <CodeOutlined style={{ fontSize: '48px', color: '#6366f1', marginBottom: '16px' }} />
+          <Title level={4} style={{ color: '#fff', marginBottom: '8px' }}>Chưa có Bridge Script hoạt động</Title>
+          <Paragraph style={{ color: '#94a3b8', marginBottom: '24px' }}>
+            Vui lòng tạo phiên bản đầu tiên của SDK Bridge Adapter Script để kích hoạt kết nối cho các Mini App.
+          </Paragraph>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleCreateClick}
+            style={{
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              border: 'none',
+              fontWeight: 600,
+            }}
+          >
+            Tạo phiên bản đầu tiên
+          </Button>
+        </Card>
+      )}
+
+      {/* 2. Version History Table */}
       <Card
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>Quản lý SDK Bridge Adapter Scripts</span>
+            <HistoryOutlined style={{ color: '#6366f1' }} />
+            <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>Lịch sử phiên bản thay đổi</span>
           </div>
-        }
-        extra={
-          <Space>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleCreateClick}
-              style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                border: 'none',
-                fontWeight: 600,
-                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
-              }}
-            >
-              Thêm Bridge Script
-            </Button>
-            <Button
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={fetchScripts}
-              loading={loading}
-              style={{ background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }}
-            >
-              Làm mới
-            </Button>
-          </Space>
         }
         bordered={false}
         style={{
@@ -378,15 +471,95 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
       >
         <Table
           columns={columns}
-          dataSource={scripts.map(s => ({ ...s, key: s.id }))}
+          dataSource={history.map(s => ({ ...s, key: s.id }))}
           loading={loading}
-          pagination={{ pageSize: 8, showSizeChanger: false }}
-          locale={{ emptyText: <span style={{ color: '#94a3b8' }}>Không có script adapter nào.</span> }}
+          pagination={{ pageSize: 6, showSizeChanger: false }}
+          locale={{ emptyText: <span style={{ color: '#94a3b8' }}>Chưa có bản ghi lịch sử nào.</span> }}
           style={{ background: 'transparent' }}
           className="custom-table"
           size="small"
         />
       </Card>
+
+      {/* 3. History Preview Modal */}
+      <Modal
+        title={
+          <div style={{ color: '#fff' }}>
+            Chi tiết phiên bản <code style={{ color: '#eab308' }}>v{previewScript?.version}</code>
+          </div>
+        }
+        open={previewVisible}
+        onCancel={() => setPreviewVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setPreviewVisible(false)} style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}>
+            Đóng lại
+          </Button>,
+          currentUser && (
+            <Button
+              key="restore"
+              type="primary"
+              icon={<CopyOutlined />}
+              onClick={() => {
+                setPreviewVisible(false);
+                handleCreateFromVersion(previewScript.id);
+              }}
+              style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
+            >
+              Tạo bản mới từ bản này
+            </Button>
+          )
+        ].filter(Boolean)}
+        width={800}
+        styles={{
+          body: {
+            background: '#1e293b',
+            color: '#fff',
+            padding: '20px 0 0 0'
+          },
+          content: {
+            background: '#1e293b',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }
+        }}
+      >
+        {previewScript && (
+          <div>
+            <div style={{ marginBottom: '16px', background: 'rgba(15, 23, 42, 0.4)', padding: '12px', borderRadius: '6px' }}>
+              <Text style={{ color: '#94a3b8', display: 'block', marginBottom: '4px', fontSize: '12px' }}>Mô tả các thay đổi:</Text>
+              <Text style={{ color: '#f1f5f9', fontSize: '13px' }}>{previewScript.description || 'Không có mô tả.'}</Text>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <Text style={{ color: '#94a3b8', fontSize: '12px' }}>Nội dung JavaScript:</Text>
+              <Button
+                type="text"
+                size="small"
+                icon={<CopyOutlined style={{ color: '#94a3b8' }} />}
+                onClick={() => {
+                  navigator.clipboard.writeText(previewScript.content);
+                  message.success('Đã sao chép mã nguồn vào clipboard!');
+                }}
+              >
+                <span style={{ color: '#94a3b8', fontSize: '11px' }}>Sao chép</span>
+              </Button>
+            </div>
+            <Input.TextArea
+              readOnly
+              value={previewScript.content}
+              rows={14}
+              style={{
+                fontFamily: '"Fira Code", Consolas, Monaco, "Courier New", monospace',
+                fontSize: '12px',
+                background: '#090d16',
+                color: '#4ade80',
+                border: '1px solid rgba(255,255,255,0.1)',
+                lineHeight: '1.5',
+                borderRadius: '6px',
+                resize: 'none'
+              }}
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
