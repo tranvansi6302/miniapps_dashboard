@@ -261,7 +261,6 @@ export default function CategoryTab({ currentUser }) {
             rules={[{ required: true, message: 'Vui lòng nhập tên danh mục!' }]}
           >
             <Input
-              prefix={<TagsOutlined style={{ color: '#94a3b8' }} />}
               placeholder="Ví dụ: Đặt chỗ, Mua sắm, Du lịch"
               style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
             />
@@ -276,7 +275,6 @@ export default function CategoryTab({ currentUser }) {
             ]}
           >
             <Input
-              prefix={<CodeOutlined style={{ color: '#94a3b8' }} />}
               placeholder="Ví dụ: booking, shopping, utilities"
               disabled={!!editingCategory}
               style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
@@ -289,7 +287,6 @@ export default function CategoryTab({ currentUser }) {
             rules={[{ required: true, message: 'Vui lòng nhập đường dẫn Icon cho danh mục!' }]}
           >
             <Input
-              prefix={<LinkOutlined style={{ color: '#94a3b8' }} />}
               placeholder="https://example.com/icon.png"
               style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
             />

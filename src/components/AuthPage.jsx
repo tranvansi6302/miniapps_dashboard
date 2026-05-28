@@ -126,7 +126,6 @@ export default function AuthPage({ onLoginSuccess }) {
                     rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}
                   >
                     <Input 
-                      prefix={<UserOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />} 
                       placeholder="Tên đăng nhập" 
                       size="large"
                       className="auth-input"
@@ -138,7 +137,6 @@ export default function AuthPage({ onLoginSuccess }) {
                     rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
                   >
                     <Input.Password
-                      prefix={<LockOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
                       placeholder="Mật khẩu"
                       size="large"
                       className="auth-input"
@@ -178,7 +176,6 @@ export default function AuthPage({ onLoginSuccess }) {
                     ]}
                   >
                     <Input 
-                      prefix={<UserOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />} 
                       placeholder="Tên đăng nhập" 
                       size="large"
                       className="auth-input"
@@ -193,7 +190,6 @@ export default function AuthPage({ onLoginSuccess }) {
                     ]}
                   >
                     <Input 
-                      prefix={<MailOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />} 
                       placeholder="Email" 
                       size="large"
                       className="auth-input"
@@ -205,7 +201,6 @@ export default function AuthPage({ onLoginSuccess }) {
                     rules={[{ required: true, message: 'Vui lòng nhập họ tên!' }]}
                   >
                     <Input 
-                      prefix={<IdcardOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />} 
                       placeholder="Họ và tên" 
                       size="large"
                       className="auth-input"
@@ -220,7 +215,6 @@ export default function AuthPage({ onLoginSuccess }) {
                     ]}
                   >
                     <Input.Password
-                      prefix={<LockOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
                       placeholder="Mật khẩu"
                       size="large"
                       className="auth-input"

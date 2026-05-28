@@ -255,7 +255,6 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
                   ]}
                 >
                   <Input
-                    prefix={<FileTextOutlined style={{ color: '#94a3b8' }} />}
                     placeholder="Ví dụ: 1.2.0"
                     style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
                   />

@@ -309,7 +309,6 @@ export default function UserTab({ currentUser }) {
                 rules={[{ required: true, message: 'Vui lòng nhập họ tên!' }]}
               >
                 <Input
-                  prefix={<IdcardOutlined style={{ color: '#94a3b8' }} />}
                   placeholder="Nhập họ và tên đầy đủ"
                   style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
                 />
@@ -324,7 +323,6 @@ export default function UserTab({ currentUser }) {
                 ]}
               >
                 <Input
-                  prefix={<MailOutlined style={{ color: '#94a3b8' }} />}
                   placeholder="example@mail.com"
                   style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
                 />
@@ -336,7 +334,6 @@ export default function UserTab({ currentUser }) {
                 rules={[{ min: 6, message: 'Mật khẩu tối thiểu phải 6 ký tự!' }]}
               >
                 <Input.Password
-                  prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
                   placeholder="Nhập mật khẩu mới nếu muốn thay đổi"
                   style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
                 />
