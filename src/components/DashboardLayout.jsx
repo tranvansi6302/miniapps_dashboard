@@ -279,6 +279,11 @@ export default function DashboardLayout({ currentUser, onLogout }) {
                       label: 'Tổng quan',
                     },
                     {
+                      key: 'versions',
+                      icon: <BranchesOutlined style={{ fontSize: '14px' }} />,
+                      label: 'Phiên bản',
+                    },
+                    {
                       key: 'members',
                       icon: <TeamOutlined style={{ fontSize: '14px' }} />,
                       label: 'Thành viên',

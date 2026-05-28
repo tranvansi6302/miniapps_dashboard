@@ -135,7 +135,7 @@ export default function UserTab({ currentUser }) {
 
   const columns = [
     {
-      title: 'Mã số (ID)',
+      title: '#ID',
       dataIndex: 'id',
       key: 'id',
       width: 100,

@@ -343,6 +343,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       key: 'actions',
       render: (_, record) => {
         const isPending = record.status === 1;
+        const isApproved = record.status === 2;
+        const isActive = record.version === editingApp?.version;
         return (
           <Space>
             {isPending && canEdit && (
@@ -371,8 +373,27 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 </Popconfirm>
               </>
             )}
-            {!isPending && (
-              <span style={{ color: '#64748b', fontSize: '12px' }}>Không có thao tác</span>
+            {isApproved && (
+              isActive ? (
+                <Tag color="success" style={{ margin: 0 }}>Đang hoạt động</Tag>
+              ) : canEdit ? (
+                <Popconfirm
+                  title="Xác nhận khôi phục (Rollback) về phiên bản này?"
+                  description={`Hệ thống sẽ chuyển phiên bản hoạt động hiện tại về v${record.version}.`}
+                  onConfirm={() => handleUpdateBuildStatus(record.id, 2)}
+                  okText="Xác nhận"
+                  cancelText="Hủy"
+                >
+                  <Button type="primary" size="small" style={{ background: '#6366f1', border: 'none', borderRadius: '4px' }}>
+                    Rollback
+                  </Button>
+                </Popconfirm>
+              ) : (
+                <span style={{ color: '#64748b', fontSize: '12px' }}>Không có thao tác</span>
+              )
+            )}
+            {record.status === 3 && (
+              <span style={{ color: '#ef4444', fontSize: '12px' }}>Đã từ chối</span>
             )}
           </Space>
         );
@@ -721,7 +742,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
 
   const columns = [
     {
-      title: 'Mã số (ID)',
+      title: '#ID',
       dataIndex: 'id',
       key: 'id',
       width: 100,
@@ -1164,186 +1185,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 </Form.Item>
               </Form>
 
-              {/* Build Information Collapse Block */}
-              <Collapse
-                defaultActiveKey={['builds']}
-                ghost
-                style={{ marginTop: '24px' }}
-              >
-                <Collapse.Panel
-                  header={
-                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>
-                      Thông tin bản build & Lịch sử phiên bản
-                    </span>
-                  }
-                  key="builds"
-                  style={{
-                    background: 'rgba(30, 41, 59, 0.4)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: '5px',
-                    padding: '0px'
-                  }}
-                >
-                  <Card
-                    bordered={false}
-                    background="transparent"
-                    styles={{ body: { padding: '8px 16px', background: 'transparent' } }}
-                    extra={
-                      canAdd && (
-                        <Button
-                          type="primary"
-                          icon={<PlusOutlined />}
-                          onClick={() => {
-                            buildForm.resetFields();
-                            setIsBuildModalOpen(true);
-                          }}
-                          style={{
-                            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                            border: 'none',
-                            fontWeight: 600,
-                            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)'
-                          }}
-                        >
-                          Tạo bản build mới
-                        </Button>
-                      )
-                    }
-                  >
-                    <Table
-                      columns={buildColumns}
-                      dataSource={builds.map(b => ({ ...b, key: b.id }))}
-                      loading={loadingBuilds}
-                      pagination={{ pageSize: 5, showSizeChanger: false }}
-                      locale={{ emptyText: <span style={{ color: '#94a3b8' }}>Chưa có bản build nào được đăng ký.</span> }}
-                      style={{ background: 'transparent' }}
-                      className="custom-table"
-                      size="small"
-                    />
-                  </Card>
-                </Collapse.Panel>
-              </Collapse>
 
-              {/* Build Creation Modal */}
-              <Modal
-                title={<span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>Đăng ký bản build phiên bản mới</span>}
-                open={isBuildModalOpen}
-                onCancel={() => setIsBuildModalOpen(false)}
-                footer={null}
-                destroyOnClose
-                wrapClassName="dark-modal"
-                width={500}
-              >
-                <Form
-                  form={buildForm}
-                  layout="vertical"
-                  onFinish={handleCreateBuild}
-                  requiredMark={false}
-                >
-                  <Form.Item
-                    name="version"
-                    label={<span style={{ color: '#e2e8f0' }}>Số phiên bản (Version)</span>}
-                    rules={[
-                      { required: true, message: 'Vui lòng nhập số phiên bản!' },
-                      { pattern: /^[0-9.]+$/, message: 'Chỉ chấp nhận số và dấu chấm (ví dụ: 1.1.0)' }
-                    ]}
-                  >
-                    <Input
-                      placeholder="Ví dụ: 1.1.0"
-                      style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-                    />
-                  </Form.Item>
-
-                  <Form.Item
-                    name="changelog"
-                    label={<span style={{ color: '#e2e8f0' }}>Nội dung phát hành (Changelog)</span>}
-                    rules={[{ required: true, message: 'Vui lòng nhập nội dung thay đổi!' }]}
-                  >
-                    <Input.TextArea
-                      rows={4}
-                      placeholder="Mô tả các thay đổi, sửa lỗi hoặc tính năng mới..."
-                      style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-                    />
-                  </Form.Item>
-
-                  <Form.Item
-                    name="reviewer_notes"
-                    label={<span style={{ color: '#e2e8f0' }}>Ghi chú cho người duyệt (Reviewer Notes)</span>}
-                  >
-                    <Input.TextArea
-                      rows={3}
-                      placeholder="Thông tin tài khoản kiểm thử, ghi chú cấu hình đặc biệt..."
-                      style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-                    />
-                  </Form.Item>
-
-                  <Row gutter={12}>
-                    <Col span={15}>
-                      <Form.Item
-                        name="file_path"
-                        label={<span style={{ color: '#e2e8f0' }}>Đường dẫn gói Offline (ZIP URL)</span>}
-                        rules={[{ required: true, message: 'Vui lòng tải lên hoặc điền đường dẫn gói .zip!' }]}
-                        extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Tệp zip chứa static source (HTML/JS/CSS) cho bản build này.</span>}
-                      >
-                        <Input
-                          placeholder="Link tải tệp .zip"
-                          style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={9}>
-                      <Form.Item
-                        label={<span style={{ color: '#e2e8f0' }}>Tải lên file ZIP</span>}
-                      >
-                        <Space direction="vertical" style={{ width: '100%' }} size={4}>
-                          <Upload
-                            beforeUpload={(file) => handleZipUpload(file, buildForm)}
-                            showUploadList={false}
-                            disabled={uploadingZip}
-                          >
-                            <Button
-                              icon={<UploadOutlined />}
-                              loading={uploadingZip}
-                              style={{ width: '100%', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }}
-                            >
-                              {uploadingZip ? 'Tải...' : 'Chọn .zip'}
-                            </Button>
-                          </Upload>
-                          <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.file_path !== currentValues.file_path}>
-                            {({ getFieldValue }) => {
-                              const filePath = getFieldValue('file_path');
-                              return filePath ? (
-                                <Button
-                                  icon={<DownloadOutlined />}
-                                  onClick={() => window.open(filePath, '_blank')}
-                                  style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a', fontSize: '11px', height: '32px' }}
-                                >
-                                  Tải file
-                                </Button>
-                              ) : null;
-                            }}
-                          </Form.Item>
-                        </Space>
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  <Form.Item style={{ marginBottom: 0, marginTop: '24px', textAlign: 'right' }}>
-                    <Space>
-                      <Button onClick={() => setIsBuildModalOpen(false)} style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}>
-                        Hủy bỏ
-                      </Button>
-                      <Button
-                        type="primary"
-                        htmlType="submit"
-                        loading={submittingBuild}
-                        style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
-                      >
-                        Đăng ký
-                      </Button>
-                    </Space>
-                  </Form.Item>
-                </Form>
-              </Modal>
 
               {/* Danger Zone Container */}
               <div style={{
@@ -1443,6 +1285,180 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 </div>
               </div>
             </div>
+          </Card>
+        ) : workspaceTab === 'versions' ? (
+          <Card
+            title={
+              <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>
+                Thông tin bản build & Lịch sử phiên bản
+              </span>
+            }
+            bordered={false}
+            style={{
+              background: 'rgba(30, 41, 59, 0.65)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '5px',
+              boxShadow: '0 20px 45px -15px rgba(0, 0, 0, 0.5)',
+            }}
+            styles={{
+              body: {
+                padding: '16px',
+              }
+            }}
+            extra={
+              canAdd && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    buildForm.resetFields();
+                    setIsBuildModalOpen(true);
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    border: 'none',
+                    fontWeight: 600,
+                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)'
+                  }}
+                >
+                  Tạo bản build mới
+                </Button>
+              )
+            }
+          >
+            <Table
+              columns={buildColumns}
+              dataSource={builds.map(b => ({ ...b, key: b.id }))}
+              loading={loadingBuilds}
+              pagination={{ pageSize: 8, showSizeChanger: false }}
+              locale={{ emptyText: <span style={{ color: '#94a3b8' }}>Chưa có bản build nào được đăng ký.</span> }}
+              style={{ background: 'transparent' }}
+              className="custom-table"
+              size="small"
+            />
+
+            {/* Build Creation Modal */}
+            <Modal
+              title={<span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>Đăng ký bản build phiên bản mới</span>}
+              open={isBuildModalOpen}
+              onCancel={() => setIsBuildModalOpen(false)}
+              footer={null}
+              destroyOnClose
+              wrapClassName="dark-modal"
+              width={500}
+            >
+              <Form
+                form={buildForm}
+                layout="vertical"
+                onFinish={handleCreateBuild}
+                requiredMark={false}
+              >
+                <Form.Item
+                  name="version"
+                  label={<span style={{ color: '#e2e8f0' }}>Số phiên bản (Version)</span>}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập số phiên bản!' },
+                    { pattern: /^[0-9.]+$/, message: 'Chỉ chấp nhận số và dấu chấm (ví dụ: 1.1.0)' }
+                  ]}
+                >
+                  <Input
+                    placeholder="Ví dụ: 1.1.0"
+                    style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="changelog"
+                  label={<span style={{ color: '#e2e8f0' }}>Nội dung phát hành (Changelog)</span>}
+                  rules={[{ required: true, message: 'Vui lòng nhập nội dung thay đổi!' }]}
+                >
+                  <Input.TextArea
+                    rows={4}
+                    placeholder="Mô tả các thay đổi, sửa lỗi hoặc tính năng mới..."
+                    style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="reviewer_notes"
+                  label={<span style={{ color: '#e2e8f0' }}>Ghi chú cho người duyệt (Reviewer Notes)</span>}
+                >
+                  <Input.TextArea
+                    rows={3}
+                    placeholder="Thông tin tài khoản kiểm thử, ghi chú cấu hình đặc biệt..."
+                    style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                  />
+                </Form.Item>
+
+                <Row gutter={12}>
+                  <Col span={15}>
+                    <Form.Item
+                      name="file_path"
+                      label={<span style={{ color: '#e2e8f0' }}>Đường dẫn gói Offline (ZIP URL)</span>}
+                      rules={[{ required: true, message: 'Vui lòng tải lên hoặc điền đường dẫn gói .zip!' }]}
+                      extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Tệp zip chứa static source (HTML/JS/CSS) cho bản build này.</span>}
+                    >
+                      <Input
+                        placeholder="Link tải tệp .zip"
+                        style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={9}>
+                    <Form.Item
+                      label={<span style={{ color: '#e2e8f0' }}>Tải lên file ZIP</span>}
+                    >
+                      <Space direction="vertical" style={{ width: '100%' }} size={4}>
+                        <Upload
+                          beforeUpload={(file) => handleZipUpload(file, buildForm)}
+                          showUploadList={false}
+                          disabled={uploadingZip}
+                        >
+                          <Button
+                            icon={<UploadOutlined />}
+                            loading={uploadingZip}
+                            style={{ width: '100%', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }}
+                          >
+                            {uploadingZip ? 'Tải...' : 'Chọn .zip'}
+                          </Button>
+                        </Upload>
+                        <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.file_path !== currentValues.file_path}>
+                          {({ getFieldValue }) => {
+                            const filePath = getFieldValue('file_path');
+                            return filePath ? (
+                              <Button
+                                icon={<DownloadOutlined />}
+                                onClick={() => window.open(filePath, '_blank')}
+                                style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a', fontSize: '11px', height: '32px' }}
+                              >
+                                Tải file
+                              </Button>
+                            ) : null;
+                          }}
+                        </Form.Item>
+                      </Space>
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Form.Item style={{ marginBottom: 0, marginTop: '24px', textAlign: 'right' }}>
+                  <Space>
+                    <Button onClick={() => setIsBuildModalOpen(false)} style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}>
+                      Hủy bỏ
+                    </Button>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      loading={submittingBuild}
+                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
+                    >
+                      Đăng ký
+                    </Button>
+                  </Space>
+                </Form.Item>
+              </Form>
+            </Modal>
           </Card>
         ) : (
           <Card

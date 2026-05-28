@@ -157,7 +157,7 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
 
   const columns = [
     {
-      title: 'Mã số (ID)',
+      title: '#ID',
       dataIndex: 'id',
       key: 'id',
       width: 100,
