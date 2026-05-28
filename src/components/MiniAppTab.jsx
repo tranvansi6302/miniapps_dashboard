@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Card, Badge, Tooltip, Select, Switch, Row, Col, Drawer, Divider, message, Popconfirm, Tag, Collapse, Upload } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, ReloadOutlined, SearchOutlined, CheckCircleOutlined, StopOutlined, UserAddOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Modal, Form, Input, Card, Badge, Tooltip, Select, Switch, Row, Col, Drawer, Divider, message, Popconfirm, Tag, Collapse, Upload, Dropdown } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, ReloadOutlined, SearchOutlined, CheckCircleOutlined, StopOutlined, UserAddOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, MoreOutlined } from '@ant-design/icons';
 import { useNavigate, useParams, useLocation, useOutletContext } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -745,7 +745,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       title: '#ID',
       dataIndex: 'id',
       key: 'id',
-      width: 100,
+      width: 70,
       sorter: (a, b) => a.id - b.id,
     },
     {
@@ -761,7 +761,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           className="workspace-link"
         >
           {record.icon_url || record.logoUrl ? (
-            <img src={record.icon_url || record.logoUrl} alt={record.name} style={{ width: '32px', height: '32px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.05)', objectFit: 'contain' }} />
+            <img src={record.icon_url || record.logoUrl} alt={record.name} style={{ width: '32px', height: '32px', borderRadius: '5px', objectFit: 'contain' }} />
           ) : (
             <div style={{ width: '32px', height: '32px', borderRadius: '5px', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{record.name[0]}</div>
           )}
@@ -773,18 +773,11 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       )
     },
     {
-      title: 'Danh mục',
-      key: 'category',
-      render: (_, record) => {
-        const catId = record.category_id || record.categoryId;
-        return <Tag color="blue">{getCategoryName(catId)}</Tag>;
-      }
-    },
-    {
       title: 'Quyền',
       key: 'permissions',
+      width: 220,
       render: (_, record) => (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '180px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '220px' }}>
           {(record.permissions || []).map(p => (
             <Tag color="cyan" key={p} style={{ margin: 0, fontSize: '11px' }}>
               {PERMISSIONS_LIST.find(pl => pl.value === p)?.label || p}
@@ -798,90 +791,112 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       title: 'Đường dẫn App',
       dataIndex: 'url',
       key: 'url',
-      ellipsis: true,
-      render: (text, record) => <span style={{ color: '#a5b4fc', fontSize: '13px' }}>{text || record.iframeUrl}</span>
+      render: (text, record) => <span style={{ color: '#a5b4fc', fontSize: '13px', wordBreak: 'break-all' }}>{text || record.iframeUrl}</span>
     },
     {
       title: 'Phiên bản',
       dataIndex: 'version',
       key: 'version',
       width: 100,
-      render: (v) => <code style={{ color: '#22c55e' }}>v{v}</code>
+      render: (v) => <code style={{ color: '#22c55e', whiteSpace: 'nowrap' }}>v{v}</code>
     },
     {
       title: 'Trạng thái',
       key: 'status',
-      width: 160,
+      width: 140,
       render: (_, record) => {
         const active = record.is_actived !== false && record.is_actived !== 'false' && record.isActived !== false;
         const hidden = record.is_hidden === true || record.is_hidden === 'true' || record.isHidden === true;
 
         return (
-          <Space direction="vertical" size={2}>
-            {active ? (
-              <Badge status="success" text={<span style={{ color: '#4ade80', fontSize: '13px' }}>Hoạt động</span>} />
-            ) : (
-              <Badge status="error" text={<span style={{ color: '#f87171', fontSize: '13px' }}>Tạm dừng</span>} />
-            )}
-            {hidden && <Tag color="warning" style={{ margin: 0, scale: '0.9' }}>Đang ẩn</Tag>}
-          </Space>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              {active ? (
+                <Badge status="success" text={<span style={{ color: '#4ade80', fontSize: '13px' }}>Hoạt động</span>} />
+              ) : (
+                <Badge status="error" text={<span style={{ color: '#f87171', fontSize: '13px' }}>Tạm dừng</span>} />
+              )}
+              {hidden && <Tag color="warning" style={{ margin: 0, fontSize: '11px', padding: '0 4px', lineHeight: '16px' }}>Đang ẩn</Tag>}
+            </div>
+          </div>
         );
       }
     },
     {
       title: 'Thao tác',
       key: 'actions',
-      width: 200,
-      render: (_, record) => (
-        <Space size="middle">
-          <Tooltip title="Thành viên">
-            <Button
-              type="text"
-              icon={<TeamOutlined style={{ color: '#10b981' }} />}
-              onClick={() => {
-                if (setWorkspaceTab) setWorkspaceTab('members');
-                navigate(`/mini-apps/${record.id}/manage`);
+      width: 80,
+      render: (_, record) => {
+        const items = [
+          {
+            key: 'manage',
+            label: 'Quản lý',
+            icon: <EditOutlined style={{ color: '#6366f1', fontSize: '16px' }} />,
+            disabled: !currentUser,
+          },
+          {
+            key: 'members',
+            label: 'Thành viên',
+            icon: <TeamOutlined style={{ color: '#10b981', fontSize: '16px' }} />,
+          },
+          record.file_path ? {
+            key: 'download',
+            label: 'Tải gói Offline',
+            icon: <DownloadOutlined style={{ color: '#eab308', fontSize: '16px' }} />,
+          } : null,
+          canDelete ? {
+            key: 'delete',
+            label: 'Xóa ứng dụng',
+            danger: true,
+            icon: <DeleteOutlined style={{ color: '#ef4444', fontSize: '16px' }} />,
+          } : null,
+        ].filter(Boolean);
+
+        const handleMenuClick = ({ key }) => {
+          if (key === 'manage') {
+            if (setWorkspaceTab) setWorkspaceTab('overview');
+            navigate(`/mini-apps/${record.id}/manage`);
+          } else if (key === 'members') {
+            if (setWorkspaceTab) setWorkspaceTab('members');
+            navigate(`/mini-apps/${record.id}/manage`);
+          } else if (key === 'download') {
+            window.open(record.file_path, '_blank');
+          } else if (key === 'delete') {
+            Modal.confirm({
+              title: 'Xác nhận xóa Mini App này?',
+              content: 'Hệ thống sẽ thực hiện khóa/xóa mềm ứng dụng này.',
+              okText: 'Đồng ý',
+              okType: 'danger',
+              cancelText: 'Hủy',
+              wrapClassName: 'dark-modal',
+              onOk() {
+                handleDelete(record.id);
+              },
+            });
+          }
+        };
+
+        return (
+          <Dropdown menu={{ items, onClick: handleMenuClick }} trigger={['click']} placement="bottomRight">
+            <Button 
+              type="primary" 
+              size="small" 
+              icon={<MoreOutlined style={{ fontSize: '16px' }} />}
+              style={{ 
+                background: 'rgba(99, 102, 241, 0.15)', 
+                border: '1px solid rgba(99, 102, 241, 0.3)', 
+                color: '#a5b4fc',
+                borderRadius: '4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '32px',
+                height: '24px'
               }}
             />
-          </Tooltip>
-          <Tooltip title={currentUser ? "Quản lý" : "Yêu cầu đăng nhập"}>
-            <Button
-              type="text"
-              icon={<EditOutlined style={{ color: currentUser ? '#6366f1' : '#64748b' }} />}
-              onClick={() => {
-                if (setWorkspaceTab) setWorkspaceTab('overview');
-                navigate(`/mini-apps/${record.id}/manage`);
-              }}
-            />
-          </Tooltip>
-          {record.file_path && (
-            <Tooltip title="Tải gói Offline (.zip)">
-              <Button
-                type="text"
-                icon={<DownloadOutlined style={{ color: '#eab308' }} />}
-                onClick={() => window.open(record.file_path, '_blank')}
-              />
-            </Tooltip>
-          )}
-          <Tooltip title={canDelete ? "Xóa" : "Bạn không có quyền xóa"}>
-            <Popconfirm
-              title="Xác nhận xóa Mini App này?"
-              description="Hệ thống sẽ thực hiện khóa/xóa mềm ứng dụng này."
-              onConfirm={() => handleDelete(record.id)}
-              okText="Đồng ý"
-              cancelText="Hủy"
-              disabled={!canDelete}
-            >
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined style={{ color: canDelete ? '#ef4444' : '#64748b' }} />}
-                disabled={!canDelete}
-              />
-            </Popconfirm>
-          </Tooltip>
-        </Space>
-      )
+          </Dropdown>
+        );
+      }
     }
   ];
 

@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Button, Space, Avatar, Badge, Tooltip, message, Spin, Popconfirm } from 'antd';
-import { 
-  AppstoreOutlined, 
-  TagsOutlined, 
-  TeamOutlined, 
-  BranchesOutlined, 
-  LogoutOutlined, 
+import {
+  AppstoreOutlined,
+  TagsOutlined,
+  TeamOutlined,
+  BranchesOutlined,
+  LogoutOutlined,
   UserOutlined,
   ArrowLeftOutlined,
-  CopyOutlined
+  CopyOutlined,
+  DashboardOutlined
 } from '@ant-design/icons';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { clearAuthData, api } from '../services/api';
+import logo from '../assets/logo.png';
 
 const { Header, Sider, Content } = Layout;
 
@@ -68,11 +70,12 @@ export default function DashboardLayout({ currentUser, onLogout }) {
   // Find active key from current path
   const getActiveKey = () => {
     const path = location.pathname;
+    if (path.startsWith('/dashboard')) return 'dashboard';
     if (path.startsWith('/mini-apps')) return 'mini-apps';
     if (path.startsWith('/categories')) return 'categories';
     if (path.startsWith('/users')) return 'users';
     if (path.startsWith('/scripts')) return 'scripts';
-    return 'mini-apps';
+    return 'dashboard';
   };
 
   return (
@@ -82,9 +85,9 @@ export default function DashboardLayout({ currentUser, onLogout }) {
         breakpoint="lg"
         collapsedWidth="0"
         style={{
-          background: 'rgba(30, 41, 59, 0.45)',
-          backdropFilter: 'blur(10px)',
-          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(12px)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.05)',
           position: 'fixed',
           height: '100vh',
           left: 0,
@@ -97,29 +100,33 @@ export default function DashboardLayout({ currentUser, onLogout }) {
           // Mini App Dedicated Workspace Sidebar
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Back to main list button */}
-            <div style={{
-              height: '50px',
+             <div style={{
+              height: '54px',
               display: 'flex',
               alignItems: 'center',
               padding: '0 16px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
             }}>
               <Button
                 type="text"
-                icon={<ArrowLeftOutlined />}
+                icon={<ArrowLeftOutlined style={{ fontSize: '12px' }} />}
                 onClick={() => {
                   setWorkspaceApp(null);
                   navigate('/mini-apps');
                 }}
                 style={{
-                  color: '#a5b4fc',
-                  padding: 0,
-                  fontSize: '13px',
+                  color: '#94a3b8',
+                  padding: '4px 10px',
+                  fontSize: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
                   height: 'auto',
+                  borderRadius: '6px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
                 }}
+                className="back-btn-hover"
               >
                 Quay lại danh sách
               </Button>
@@ -159,9 +166,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
                           width: '36px',
                           height: '36px',
                           borderRadius: '5px',
-                          objectFit: 'contain',
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '1px solid rgba(255,255,255,0.08)'
+                          objectFit: 'contain'
                         }}
                       />
                     ) : (
@@ -266,12 +271,13 @@ export default function DashboardLayout({ currentUser, onLogout }) {
                 </div>
 
                 {/* Workspace Workspace Menu Options */}
-                <Menu
+                 <Menu
                   theme="dark"
                   mode="inline"
                   selectedKeys={[workspaceTab]}
                   onClick={({ key }) => setWorkspaceTab(key)}
                   style={{ background: 'transparent', marginTop: '16px' }}
+                  className="custom-menu"
                   items={[
                     {
                       key: 'overview',
@@ -305,24 +311,35 @@ export default function DashboardLayout({ currentUser, onLogout }) {
         ) : (
           // Main Dashboard Sidebar
           <>
-            <div style={{
+             <div style={{
               height: '64px',
               display: 'flex',
               alignItems: 'center',
+              gap: '12px',
               padding: '0 24px',
               borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
             }}>
+              <img
+                src={logo}
+                alt="Logo"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '6px',
+                  objectFit: 'contain'
+                }}
+              />
               <h2 style={{
                 color: '#fff',
-                fontSize: '15px',
+                fontSize: '16px',
                 fontWeight: 700,
                 margin: 0,
-                background: 'linear-gradient(to right, #6366f1, #ec4899)',
+                background: 'linear-gradient(to right, #818cf8, #ec4899)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 letterSpacing: '-0.5px'
               }}>
-                MiniApp Admin
+                DEV Center
               </h2>
             </div>
 
@@ -332,7 +349,14 @@ export default function DashboardLayout({ currentUser, onLogout }) {
               selectedKeys={[getActiveKey()]}
               onClick={({ key }) => navigate(`/${key}`)}
               style={{ background: 'transparent', marginTop: '16px' }}
-              items={filteredMenuItems.map(item => ({
+              items={[
+                {
+                  key: 'dashboard',
+                  icon: <DashboardOutlined style={{ fontSize: '14px' }} />,
+                  label: 'Tổng quan'
+                },
+                ...filteredMenuItems
+              ].map(item => ({
                 ...item,
                 style: {
                   borderRadius: '5px',
@@ -374,8 +398,8 @@ export default function DashboardLayout({ currentUser, onLogout }) {
 
           <Space size="large">
             <Space size="middle">
-              <Avatar 
-                icon={<UserOutlined />} 
+              <Avatar
+                icon={<UserOutlined />}
                 style={{ background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', verticalAlign: 'middle' }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
@@ -397,9 +421,9 @@ export default function DashboardLayout({ currentUser, onLogout }) {
                   okButtonProps={{ danger: true, style: { borderRadius: '5px' } }}
                   cancelButtonProps={{ style: { borderRadius: '5px' } }}
                 >
-                  <Button 
-                    type="text" 
-                    icon={<LogoutOutlined style={{ color: '#f87171' }} />} 
+                  <Button
+                    type="text"
+                    icon={<LogoutOutlined style={{ color: '#f87171' }} />}
                     style={{ marginLeft: '12px' }}
                   />
                 </Popconfirm>

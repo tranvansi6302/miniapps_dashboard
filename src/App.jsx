@@ -9,6 +9,7 @@ import MiniAppTab from './components/MiniAppTab';
 import CategoryTab from './components/CategoryTab';
 import UserTab from './components/UserTab';
 import ScriptTab from './components/ScriptTab';
+import DashboardTab from './components/DashboardTab';
 
 function PermissionGuard({ currentUser, menuKey, children }) {
   if (!currentUser) return <Navigate to="/login" replace />;
@@ -139,7 +140,8 @@ export default function App() {
             }
           >
             {/* Direct sub-routes under the DashboardLayout */}
-            <Route index element={<Navigate to="/mini-apps" replace />} />
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardTab />} />
             <Route path="mini-apps" element={<PermissionGuard currentUser={currentUser} menuKey="mini-apps"><MiniAppTab currentUser={currentUser} /></PermissionGuard>} />
             <Route path="mini-apps/new" element={<PermissionGuard currentUser={currentUser} menuKey="mini-apps"><MiniAppTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
             <Route path="mini-apps/:id/edit" element={<PermissionGuard currentUser={currentUser} menuKey="mini-apps"><MiniAppTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
@@ -152,7 +154,7 @@ export default function App() {
             <Route path="scripts" element={<PermissionGuard currentUser={currentUser} menuKey="scripts"><ScriptTab currentUser={currentUser} /></PermissionGuard>} />
             <Route path="scripts/new" element={<PermissionGuard currentUser={currentUser} menuKey="scripts"><ScriptTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
             <Route path="scripts/:id/edit" element={<PermissionGuard currentUser={currentUser} menuKey="scripts"><ScriptTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
-            <Route path="*" element={<Navigate to="/mini-apps" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>

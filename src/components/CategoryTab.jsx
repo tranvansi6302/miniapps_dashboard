@@ -124,13 +124,6 @@ export default function CategoryTab({ currentUser }) {
       render: (text) => <code style={{ color: '#ec4899', background: 'rgba(236,72,153,0.1)', padding: '2px 6px', borderRadius: '5px' }}>{text}</code>,
     },
     {
-      title: 'Đường dẫn Icon',
-      dataIndex: 'icon_url',
-      key: 'icon_url',
-      ellipsis: true,
-      render: (text, record) => <span style={{ color: '#94a3b8' }}>{text || record.iconUrl || '—'}</span>,
-    },
-    {
       title: 'Trạng thái',
       dataIndex: 'is_active',
       key: 'is_active',
