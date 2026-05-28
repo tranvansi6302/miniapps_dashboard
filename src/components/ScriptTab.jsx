@@ -12,6 +12,9 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+
+  const scriptPerm = currentUser?.username === 'admin' ? 7 : (currentUser?.menu_permissions?.['scripts'] || 0);
+  const canAdd = (scriptPerm & 1) === 1;
   const [previewScript, setPreviewScript] = useState(null);
   const [previewVisible, setPreviewVisible] = useState(false);
   const navigate = useNavigate();
@@ -87,6 +90,11 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
 
   useEffect(() => {
     if (forceFormView) {
+      if (!canAdd) {
+        message.error('Bạn không có quyền thực hiện thao tác này!');
+        navigate('/scripts');
+        return;
+      }
       if (isEditing) {
         fetchScriptDetails();
       } else {
@@ -96,7 +104,7 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
     } else {
       fetchActiveAndHistory();
     }
-  }, [forceFormView, id]);
+  }, [forceFormView, id, canAdd, navigate]);
 
   const handleCreateClick = () => {
     if (!currentUser) {
@@ -190,12 +198,12 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
                 onClick={() => handleViewDetails(record.id)}
               />
             </Tooltip>
-            <Tooltip title={currentUser ? "Tạo bản mới dựa trên bản này" : "Yêu cầu đăng nhập để thao tác"}>
+            <Tooltip title={currentUser && canAdd ? "Tạo bản mới dựa trên bản này" : "Bạn không có quyền thao tác"}>
               <Button
                 type="text"
-                icon={<CopyOutlined style={{ color: currentUser ? '#a5b4fc' : '#64748b' }} />}
+                icon={<CopyOutlined style={{ color: currentUser && canAdd ? '#a5b4fc' : '#64748b' }} />}
                 onClick={() => handleCreateFromVersion(record.id)}
-                disabled={!currentUser}
+                disabled={!currentUser || !canAdd}
               />
             </Tooltip>
           </Space>
@@ -359,19 +367,21 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
               </div>
 
               <Space>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={handleCreateClick}
-                  style={{
-                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                    border: 'none',
-                    fontWeight: 600,
-                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
-                  }}
-                >
-                  Tạo Phiên Bản Mới
-                </Button>
+                {canAdd && (
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={handleCreateClick}
+                    style={{
+                      background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                      border: 'none',
+                      fontWeight: 600,
+                      boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+                    }}
+                  >
+                    Tạo Phiên Bản Mới
+                  </Button>
+                )}
                 <Button
                   type="default"
                   icon={<ReloadOutlined />}
@@ -438,18 +448,20 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
           <Paragraph style={{ color: '#94a3b8', marginBottom: '24px' }}>
             Vui lòng tạo phiên bản đầu tiên của SDK Bridge Adapter Script để kích hoạt kết nối cho các Mini App.
           </Paragraph>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreateClick}
-            style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-              border: 'none',
-              fontWeight: 600,
-            }}
-          >
-            Tạo phiên bản đầu tiên
-          </Button>
+          {canAdd && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreateClick}
+              style={{
+                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                border: 'none',
+                fontWeight: 600,
+              }}
+            >
+              Tạo phiên bản đầu tiên
+            </Button>
+          )}
         </Card>
       )}
 
@@ -494,7 +506,7 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
           <Button key="close" onClick={() => setPreviewVisible(false)} style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}>
             Đóng lại
           </Button>,
-          currentUser && (
+          currentUser && canAdd && (
             <Button
               key="restore"
               type="primary"

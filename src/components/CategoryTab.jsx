@@ -11,6 +11,11 @@ export default function CategoryTab({ currentUser }) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
+  const categoryPerm = currentUser?.username === 'admin' ? 7 : (currentUser?.menu_permissions?.['categories'] || 0);
+  const canAdd = (categoryPerm & 1) === 1;
+  const canDelete = (categoryPerm & 2) === 2;
+  const canEdit = (categoryPerm & 4) === 4;
+
   const fetchCategories = async () => {
     setLoading(true);
     try {
@@ -147,28 +152,29 @@ export default function CategoryTab({ currentUser }) {
         const isActive = record.is_active !== false && record.is_active !== 'false';
         return (
           <Space size="middle">
-            <Tooltip title={currentUser ? "Chỉnh sửa danh mục" : "Yêu cầu đăng nhập"}>
+            <Tooltip title={canEdit ? "Chỉnh sửa danh mục" : "Bạn không có quyền chỉnh sửa"}>
               <Button
                 type="text"
-                icon={<EditOutlined style={{ color: currentUser ? '#6366f1' : '#64748b' }} />}
+                disabled={!canEdit}
+                icon={<EditOutlined style={{ color: canEdit ? '#6366f1' : '#64748b' }} />}
                 onClick={() => handleEditClick(record)}
               />
             </Tooltip>
             {isActive && (
-              <Tooltip title={currentUser ? "Xóa danh mục" : "Yêu cầu đăng nhập"}>
+              <Tooltip title={canDelete ? "Xóa danh mục" : "Bạn không có quyền xóa"}>
                 <Popconfirm
                   title="Xác nhận xóa danh mục?"
                   description="Danh mục này sẽ bị ẩn khỏi hệ thống Mini Apps công khai."
                   onConfirm={() => handleDelete(record.id)}
                   okText="Xóa"
                   cancelText="Hủy"
-                  disabled={!currentUser}
+                  disabled={!canDelete}
                 >
                   <Button
                     type="text"
                     danger
-                    icon={<DeleteOutlined style={{ color: currentUser ? '#ef4444' : '#64748b' }} />}
-                    disabled={!currentUser}
+                    disabled={!canDelete}
+                    icon={<DeleteOutlined style={{ color: canDelete ? '#ef4444' : '#64748b' }} />}
                   />
                 </Popconfirm>
               </Tooltip>
@@ -190,19 +196,21 @@ export default function CategoryTab({ currentUser }) {
         }
         extra={
           <Space>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleCreateClick}
-              style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                border: 'none',
-                fontWeight: 600,
-                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
-              }}
-            >
-              Thêm Danh mục
-            </Button>
+            {canAdd && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleCreateClick}
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  border: 'none',
+                  fontWeight: 600,
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+                }}
+              >
+                Thêm Danh mục
+              </Button>
+            )}
             <Button
               type="primary"
               icon={<ReloadOutlined />}

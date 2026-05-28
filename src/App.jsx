@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, theme, message } from 'antd';
-import { getAuthData } from './services/api';
+import { getAuthData, clearAuthData } from './services/api';
 import AuthPage from './components/AuthPage';
 import DashboardLayout from './components/DashboardLayout';
 
@@ -9,6 +9,27 @@ import MiniAppTab from './components/MiniAppTab';
 import CategoryTab from './components/CategoryTab';
 import UserTab from './components/UserTab';
 import ScriptTab from './components/ScriptTab';
+
+function PermissionGuard({ currentUser, menuKey, children }) {
+  if (!currentUser) return <Navigate to="/login" replace />;
+  if (currentUser.username === 'admin') {
+    return children;
+  }
+  const hasAccess = currentUser.menu_permissions && (menuKey in currentUser.menu_permissions);
+  if (!hasAccess) {
+    const allowedMenus = Object.keys(currentUser.menu_permissions || {});
+    if (allowedMenus.length > 0) {
+      return <Navigate to={`/${allowedMenus[0]}`} replace />;
+    }
+    // Force clean up to prevent infinite redirect loops
+    clearAuthData();
+    setTimeout(() => {
+      window.dispatchEvent(new Event('auth-failed'));
+    }, 0);
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -89,7 +110,19 @@ export default function App() {
               !currentUser ? (
                 <AuthPage onLoginSuccess={handleLoginSuccess} />
               ) : (
-                <Navigate to="/mini-apps" replace />
+                (() => {
+                  const allowedMenus = Object.keys(currentUser.menu_permissions || {});
+                  if (allowedMenus.length > 0) {
+                    return <Navigate to={`/${allowedMenus[0]}`} replace />;
+                  }
+                  // Force logout to break redirect loop
+                  clearAuthData();
+                  setTimeout(() => {
+                    setCurrentUser(null);
+                    message.error('Tài khoản của bạn chưa được phân quyền truy cập menu nào.');
+                  }, 0);
+                  return <AuthPage onLoginSuccess={handleLoginSuccess} />;
+                })()
               )
             } 
           />
@@ -107,15 +140,18 @@ export default function App() {
           >
             {/* Direct sub-routes under the DashboardLayout */}
             <Route index element={<Navigate to="/mini-apps" replace />} />
-            <Route path="mini-apps" element={<MiniAppTab currentUser={currentUser} />} />
-            <Route path="mini-apps/new" element={<MiniAppTab currentUser={currentUser} forceFormView={true} />} />
-            <Route path="mini-apps/:id/edit" element={<MiniAppTab currentUser={currentUser} forceFormView={true} />} />
-            <Route path="mini-apps/:id/manage" element={<MiniAppTab currentUser={currentUser} isWorkspaceView={true} />} />
-            <Route path="categories" element={<CategoryTab currentUser={currentUser} />} />
-            <Route path="users" element={<UserTab currentUser={currentUser} />} />
-            <Route path="scripts" element={<ScriptTab currentUser={currentUser} />} />
-            <Route path="scripts/new" element={<ScriptTab currentUser={currentUser} forceFormView={true} />} />
-            <Route path="scripts/:id/edit" element={<ScriptTab currentUser={currentUser} forceFormView={true} />} />
+            <Route path="mini-apps" element={<PermissionGuard currentUser={currentUser} menuKey="mini-apps"><MiniAppTab currentUser={currentUser} /></PermissionGuard>} />
+            <Route path="mini-apps/new" element={<PermissionGuard currentUser={currentUser} menuKey="mini-apps"><MiniAppTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
+            <Route path="mini-apps/:id/edit" element={<PermissionGuard currentUser={currentUser} menuKey="mini-apps"><MiniAppTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
+            <Route path="mini-apps/:id/manage" element={<PermissionGuard currentUser={currentUser} menuKey="mini-apps"><MiniAppTab currentUser={currentUser} isWorkspaceView={true} /></PermissionGuard>} />
+            
+            <Route path="categories" element={<PermissionGuard currentUser={currentUser} menuKey="categories"><CategoryTab currentUser={currentUser} /></PermissionGuard>} />
+            
+            <Route path="users" element={<PermissionGuard currentUser={currentUser} menuKey="users"><UserTab currentUser={currentUser} /></PermissionGuard>} />
+            
+            <Route path="scripts" element={<PermissionGuard currentUser={currentUser} menuKey="scripts"><ScriptTab currentUser={currentUser} /></PermissionGuard>} />
+            <Route path="scripts/new" element={<PermissionGuard currentUser={currentUser} menuKey="scripts"><ScriptTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
+            <Route path="scripts/:id/edit" element={<PermissionGuard currentUser={currentUser} menuKey="scripts"><ScriptTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
             <Route path="*" element={<Navigate to="/mini-apps" replace />} />
           </Route>
         </Routes>

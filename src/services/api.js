@@ -1,4 +1,5 @@
 const API_BASE_URL = 'https://miniapps-api-2zb0.onrender.com/api';
+// const API_BASE_URL = 'http://localhost:3000/api';
 
 // Helper to get authentication data from localStorage
 export const getAuthData = () => {
@@ -34,7 +35,12 @@ const subscribeTokenRefresh = (cb) => {
 };
 
 const onRefreshed = (token) => {
-  refreshSubscribers.map((cb) => cb(token));
+  refreshSubscribers.forEach((cb) => cb(token, null));
+  refreshSubscribers = [];
+};
+
+const onRefreshFailed = (err) => {
+  refreshSubscribers.forEach((cb) => cb(null, err));
   refreshSubscribers = [];
 };
 
@@ -44,9 +50,12 @@ async function customFetch(endpoint, options = {}) {
 
   // Prepare headers
   const headers = {
-    'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
@@ -66,10 +75,14 @@ async function customFetch(endpoint, options = {}) {
   if ((response.status === 401 || response.status === 403) && !options._retry) {
     if (isRefreshing) {
       // If we are already refreshing, wait for it to complete
-      return new Promise((resolve) => {
-        subscribeTokenRefresh((newToken) => {
-          config.headers['Authorization'] = `Bearer ${newToken}`;
-          resolve(fetch(url, config));
+      return new Promise((resolve, reject) => {
+        subscribeTokenRefresh((newToken, err) => {
+          if (err) {
+            reject(err);
+          } else {
+            config.headers['Authorization'] = `Bearer ${newToken}`;
+            resolve(fetch(url, config));
+          }
         });
       });
     }
@@ -110,7 +123,7 @@ async function customFetch(endpoint, options = {}) {
       return await fetch(url, config);
     } catch (err) {
       isRefreshing = false;
-      refreshSubscribers = [];
+      onRefreshFailed(err);
       clearAuthData();
       // Dispatch a custom event to notify components to log out
       window.dispatchEvent(new Event('auth-failed'));
@@ -136,7 +149,7 @@ export const api = {
     const res = await customFetch(endpoint, {
       ...options,
       method: 'POST',
-      body: JSON.stringify(body),
+      body: body instanceof FormData ? body : JSON.stringify(body),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));

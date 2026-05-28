@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Button, Space, Avatar, Badge, Tooltip, message, Spin, Popconfirm } from 'antd';
 import { 
   AppstoreOutlined, 
@@ -11,7 +11,7 @@ import {
   CopyOutlined
 } from '@ant-design/icons';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { clearAuthData } from '../services/api';
+import { clearAuthData, api } from '../services/api';
 
 const { Header, Sider, Content } = Layout;
 
@@ -23,30 +23,42 @@ export default function DashboardLayout({ currentUser, onLogout }) {
   const [workspaceApp, setWorkspaceApp] = useState(null);
   const [workspaceTab, setWorkspaceTab] = useState('overview');
 
+  const [menus, setMenus] = useState([]);
+  const [loadingMenus, setLoadingMenus] = useState(true);
+
   const isWorkspaceRoute = /^\/mini-apps\/[^/]+\/manage$/.test(location.pathname);
 
-  const menuItems = [
-    {
-      key: 'mini-apps',
-      icon: <AppstoreOutlined />,
-      label: 'Ứng dụng Mini App',
-    },
-    {
-      key: 'categories',
-      icon: <TagsOutlined />,
-      label: 'Danh mục Mini App',
-    },
-    {
-      key: 'users',
-      icon: <TeamOutlined />,
-      label: 'Quản lý Người dùng',
-    },
-    {
-      key: 'scripts',
-      icon: <BranchesOutlined />,
-      label: 'SDK Bridge Scripts',
-    },
-  ];
+  useEffect(() => {
+    const fetchMenus = async () => {
+      try {
+        const res = await api.get('/menus');
+        setMenus(res.data || []);
+      } catch (err) {
+        console.error('Lỗi khi tải danh mục menu:', err);
+      } finally {
+        setLoadingMenus(false);
+      }
+    };
+    fetchMenus();
+  }, []);
+
+  const menuIcons = {
+    'mini-apps': <AppstoreOutlined />,
+    'categories': <TagsOutlined />,
+    'users': <TeamOutlined />,
+    'scripts': <BranchesOutlined />,
+  };
+
+  const filteredMenuItems = menus
+    .filter(menu => {
+      if (currentUser.username === 'admin') return true;
+      return currentUser.menu_permissions && (menu.key in currentUser.menu_permissions);
+    })
+    .map(menu => ({
+      key: menu.key,
+      icon: menuIcons[menu.key] || <AppstoreOutlined />,
+      label: menu.label
+    }));
 
   const handleLogout = () => {
     clearAuthData();
@@ -315,7 +327,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
               selectedKeys={[getActiveKey()]}
               onClick={({ key }) => navigate(`/${key}`)}
               style={{ background: 'transparent', marginTop: '16px' }}
-              items={menuItems.map(item => ({
+              items={filteredMenuItems.map(item => ({
                 ...item,
                 style: {
                   borderRadius: '5px',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Card, Badge, Tooltip, Select, Switch, Row, Col, Drawer, Divider, message, Popconfirm, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, ReloadOutlined, SearchOutlined, CheckCircleOutlined, StopOutlined, UserAddOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Modal, Form, Input, Card, Badge, Tooltip, Select, Switch, Row, Col, Drawer, Divider, message, Popconfirm, Tag, Collapse, Upload } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, ReloadOutlined, SearchOutlined, CheckCircleOutlined, StopOutlined, UserAddOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useNavigate, useParams, useLocation, useOutletContext } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -15,7 +15,18 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
     { value: 'push_notification', label: 'Thông báo đẩy' }
   ];
 
+  const miniAppPerm = currentUser?.username === 'admin' ? 7 : (currentUser?.menu_permissions?.['mini-apps'] || 0);
+  const canAdd = (miniAppPerm & 1) === 1;
+  const canDelete = (miniAppPerm & 2) === 2;
+  const canEdit = (miniAppPerm & 4) === 4;
+
   const [apps, setApps] = useState([]);
+  const [roles, setRoles] = useState([]); // List of system roles from database
+  const [builds, setBuilds] = useState([]);
+  const [loadingBuilds, setLoadingBuilds] = useState(false);
+  const [isBuildModalOpen, setIsBuildModalOpen] = useState(false);
+  const [submittingBuild, setSubmittingBuild] = useState(false);
+  const [buildForm] = Form.useForm();
   const [categories, setCategories] = useState([]);
   const [users, setUsers] = useState([]); // List of all users for bulk membership
   const [loading, setLoading] = useState(false);
@@ -24,6 +35,40 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
   const [editingApp, setEditingApp] = useState(null);
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingZip, setUploadingZip] = useState(false);
+
+  const handleZipUpload = async (file, formInstance) => {
+    const isZip = file.type === 'application/zip' || file.name.endsWith('.zip') || file.type === 'application/x-zip-compressed';
+    if (!isZip) {
+      message.error('Chỉ chấp nhận tệp tin định dạng .zip!');
+      return false;
+    }
+
+    const versionVal = formInstance.getFieldValue('version');
+    if (!versionVal) {
+      message.warning('Vui lòng nhập "Số phiên bản (Version)" trước khi tải tệp ZIP lên để đặt tên file chuẩn hóa!');
+      return false;
+    }
+
+    const formData = new FormData();
+    // Gửi kèm thông tin text lên TRƯỚC để Multer bắt được khi parse file
+    formData.append('app_id', editingApp?.app_id || editingApp?.appId || 'unknown');
+    formData.append('version', versionVal);
+    formData.append('file', file);
+
+    setUploadingZip(true);
+    try {
+      const res = await api.post('/mini-apps/upload', formData);
+      const url = res.data?.url || res.url;
+      formInstance.setFieldsValue({ file_path: url });
+      message.success('Tải lên tệp zip thành công!');
+    } catch (err) {
+      message.error('Tải lên thất bại: ' + err.message);
+    } finally {
+      setUploadingZip(false);
+    }
+    return false; // Chặn Antd tự động upload
+  };
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -43,6 +88,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
   const [membersLoading, setMembersLoading] = useState(false);
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
   const [bulkAddUserIds, setBulkAddUserIds] = useState([]);
+  const [bulkAddRoleCode, setBulkAddRoleCode] = useState('tester');
   const [memberBulkActionLoading, setMemberBulkActionLoading] = useState(false);
 
   // Sync workspace details when route switches to /mini-apps/:id/manage
@@ -96,11 +142,13 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               terms_url: appData.terms_url || appData.termsUrl,
               privacy_policy_url: appData.privacy_policy_url || appData.privacyPolicyUrl,
               permissions: appData.permissions || [],
+              file_path: appData.file_path || appData.filePath || '',
             });
             
             // Fetch membership list
             await fetchAppMembers(appData.id);
             await fetchUsers();
+            await fetchAppBuilds(appData.id);
           }
         } catch (err) {
           message.error('Không thể tải thông tin Mini App: ' + err.message);
@@ -145,6 +193,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             terms_url: app.terms_url || app.termsUrl,
             privacy_policy_url: app.privacy_policy_url || app.privacyPolicyUrl,
             permissions: app.permissions || [],
+            file_path: app.file_path || app.filePath || '',
           });
         }
       } else if (!id) {
@@ -155,10 +204,181 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           is_hidden: false,
           is_actived: true,
           permissions: [],
+          file_path: '',
         });
       }
     }
   }, [id, apps, form, isWorkspaceView]);
+
+  useEffect(() => {
+    if (isFormView) {
+      if (!id && !canAdd) {
+        message.error('Bạn không có quyền thêm mới Mini App!');
+        navigate('/mini-apps');
+      } else if (id && !canEdit) {
+        message.error('Bạn không có quyền chỉnh sửa Mini App!');
+        navigate('/mini-apps');
+      }
+    }
+  }, [isFormView, id, canAdd, canEdit, navigate]);
+
+  const fetchAppBuilds = async (appId) => {
+    setLoadingBuilds(true);
+    try {
+      const res = await api.get(`/mini-apps/${appId}/builds`);
+      setBuilds(res.data || res || []);
+    } catch (err) {
+      console.error('Không thể tải danh sách bản build:', err);
+    } finally {
+      setLoadingBuilds(false);
+    }
+  };
+
+  const handleCreateBuild = async (values) => {
+    setSubmittingBuild(true);
+    try {
+      await api.post(`/mini-apps/${id}/builds`, {
+        version: values.version,
+        changelog: values.changelog,
+        reviewer_notes: values.reviewer_notes,
+        file_path: values.file_path
+      });
+      message.success('Đăng ký bản build mới thành công!');
+      setIsBuildModalOpen(false);
+      buildForm.resetFields();
+      await fetchAppBuilds(id);
+    } catch (err) {
+      message.error(err.message || 'Tải lên bản build thất bại.');
+    } finally {
+      setSubmittingBuild(false);
+    }
+  };
+
+  const handleUpdateBuildStatus = async (buildId, newStatus) => {
+    try {
+      await api.put(`/mini-apps/${id}/builds/${buildId}/status`, {
+        status: newStatus
+      });
+      message.success(newStatus === 2 ? 'Đã duyệt bản build thành công!' : 'Đã từ chối bản build.');
+      
+      // Reload builds list
+      await fetchAppBuilds(id);
+      
+      // If approved, reload parent app details to sync the version in state
+      const response = await api.get(`/mini-apps/${id}`);
+      const appData = response.data || response;
+      if (appData) {
+        setEditingApp(appData);
+        if (setWorkspaceApp) {
+          setWorkspaceApp(prev => ({
+            ...prev,
+            version: appData.version
+          }));
+        }
+      }
+    } catch (err) {
+      message.error(err.message || 'Cập nhật trạng thái bản build thất bại.');
+    }
+  };
+
+  const buildColumns = [
+    {
+      title: 'Phiên bản (Version)',
+      dataIndex: 'version',
+      key: 'version',
+      fontWeight: 'bold',
+      render: (text) => <code style={{ color: '#eab308', fontWeight: 600 }}>v{text}</code>,
+    },
+    {
+      title: 'Nội dung phát hành (Changelog)',
+      dataIndex: 'changelog',
+      key: 'changelog',
+      ellipsis: true,
+      render: (text) => <span style={{ color: '#cbd5e1' }}>{text || '—'}</span>,
+    },
+    {
+      title: 'Gói ZIP',
+      dataIndex: 'file_path',
+      key: 'file_path',
+      width: 100,
+      render: (filePath) => {
+        return filePath ? (
+          <Tooltip title="Tải gói zip phiên bản này">
+            <Button
+              type="text"
+              icon={<DownloadOutlined style={{ color: '#eab308' }} />}
+              onClick={() => window.open(filePath, '_blank')}
+            />
+          </Tooltip>
+        ) : (
+          <span style={{ color: '#64748b', fontSize: '12px' }}>Không có</span>
+        );
+      }
+    },
+    {
+      title: 'Ghi chú duyệt',
+      dataIndex: 'reviewer_notes',
+      key: 'reviewer_notes',
+      ellipsis: true,
+      render: (text) => <span style={{ color: '#94a3b8' }}>{text || '—'}</span>,
+    },
+    {
+      title: 'Ngày tải lên',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date) => <span style={{ color: '#64748b' }}>{new Date(date).toLocaleString('vi-VN')}</span>,
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        if (status === 1) return <Badge status="processing" text={<span style={{ color: '#38bdf8' }}>Chờ duyệt</span>} />;
+        if (status === 2) return <Badge status="success" text={<span style={{ color: '#4ade80' }}>Đã duyệt</span>} />;
+        return <Badge status="error" text={<span style={{ color: '#f87171' }}>Từ chối</span>} />;
+      },
+    },
+    {
+      title: 'Hành động',
+      key: 'actions',
+      render: (_, record) => {
+        const isPending = record.status === 1;
+        return (
+          <Space>
+            {isPending && canEdit && (
+              <>
+                <Popconfirm
+                  title="Duyệt bản build này?"
+                  description="Phiên bản của Mini App sẽ được cập nhật thành phiên bản này."
+                  onConfirm={() => handleUpdateBuildStatus(record.id, 2)}
+                  okText="Duyệt"
+                  cancelText="Hủy"
+                >
+                  <Button type="primary" size="small" style={{ background: '#10b981', border: 'none', borderRadius: '4px' }}>
+                    Duyệt
+                  </Button>
+                </Popconfirm>
+                <Popconfirm
+                  title="Từ chối bản build này?"
+                  onConfirm={() => handleUpdateBuildStatus(record.id, 3)}
+                  okText="Từ chối"
+                  cancelText="Hủy"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button danger type="primary" size="small" style={{ borderRadius: '4px' }}>
+                    Từ chối
+                  </Button>
+                </Popconfirm>
+              </>
+            )}
+            {!isPending && (
+              <span style={{ color: '#64748b', fontSize: '12px' }}>Không có thao tác</span>
+            )}
+          </Space>
+        );
+      },
+    },
+  ];
 
   const fetchCategories = async () => {
     try {
@@ -175,6 +395,15 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       setUsers(data.data || data);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const data = await api.get('/mini-apps/meta/roles');
+      setRoles(data.data || data || []);
+    } catch (err) {
+      console.error('Không thể tải danh sách vai trò:', err);
     }
   };
 
@@ -198,6 +427,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
     fetchCategories();
     fetchUsers();
     fetchApps();
+    fetchRoles();
   }, [selectedCategory]);
 
   const handleSearch = () => {
@@ -255,6 +485,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         terms_url: editingApp.terms_url || editingApp.termsUrl || '',
         privacy_policy_url: editingApp.privacy_policy_url || editingApp.privacyPolicyUrl || '',
         permissions: editingApp.permissions || [],
+        file_path: editingApp.file_path || editingApp.filePath || '',
         is_hidden: fieldName === 'is_hidden' ? newValue : (editingApp.is_hidden === true || editingApp.isHidden === true),
         is_actived: fieldName === 'is_actived' ? newValue : (editingApp.is_actived !== false && editingApp.isActived !== false),
       };
@@ -328,6 +559,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         terms_url: values.terms_url,
         privacy_policy_url: values.privacy_policy_url,
         permissions: values.permissions || [],
+        file_path: values.file_path || '',
       };
 
       if (editingApp) {
@@ -363,6 +595,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
     setActiveApp(app);
     setDrawerOpen(true);
     setBulkAddUserIds([]);
+    setBulkAddRoleCode('tester');
     setSelectedMemberIds([]);
     await fetchAppMembers(app.id);
   };
@@ -392,13 +625,40 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
     try {
       await api.post(`/mini-apps/${activeApp.id}/members`, {
         user_ids: bulkAddUserIds,
-        status: 1 // Approved
+        status: 1, // Approved
+        role_code: bulkAddRoleCode
       });
       message.success('Thêm thành viên hàng loạt thành công!');
       setBulkAddUserIds([]);
+      setBulkAddRoleCode('tester');
       fetchAppMembers(activeApp.id);
     } catch (err) {
       message.error(err.message || 'Không thể thêm thành viên.');
+    } finally {
+      setMemberBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkUpdateMemberRole = async (roleCode) => {
+    if (!currentUser) {
+      message.warning('Bạn cần đăng nhập để thao tác thành viên!');
+      return;
+    }
+    if (selectedMemberIds.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một thành viên trong danh sách!');
+      return;
+    }
+    setMemberBulkActionLoading(true);
+    try {
+      await api.put(`/mini-apps/${activeApp.id}/members`, {
+        user_ids: selectedMemberIds,
+        role_code: roleCode
+      });
+      message.success('Cập nhật vai trò thành viên hàng loạt thành công!');
+      setSelectedMemberIds([]);
+      fetchAppMembers(activeApp.id);
+    } catch (err) {
+      message.error(err.message || 'Cập nhật vai trò thất bại.');
     } finally {
       setMemberBulkActionLoading(false);
     }
@@ -573,20 +833,29 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               }}
             />
           </Tooltip>
-          <Tooltip title={currentUser ? "Xóa" : "Yêu cầu đăng nhập"}>
+          {record.file_path && (
+            <Tooltip title="Tải gói Offline (.zip)">
+              <Button
+                type="text"
+                icon={<DownloadOutlined style={{ color: '#eab308' }} />}
+                onClick={() => window.open(record.file_path, '_blank')}
+              />
+            </Tooltip>
+          )}
+          <Tooltip title={canDelete ? "Xóa" : "Bạn không có quyền xóa"}>
             <Popconfirm
               title="Xác nhận xóa Mini App này?"
               description="Hệ thống sẽ thực hiện khóa/xóa mềm ứng dụng này."
               onConfirm={() => handleDelete(record.id)}
               okText="Đồng ý"
               cancelText="Hủy"
-              disabled={!currentUser}
+              disabled={!canDelete}
             >
               <Button
                 type="text"
                 danger
-                icon={<DeleteOutlined style={{ color: currentUser ? '#ef4444' : '#64748b' }} />}
-                disabled={!currentUser}
+                icon={<DeleteOutlined style={{ color: canDelete ? '#ef4444' : '#64748b' }} />}
+                disabled={!canDelete}
               />
             </Popconfirm>
           </Tooltip>
@@ -612,6 +881,23 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       dataIndex: 'email',
       key: 'email',
       render: (t) => <span style={{ color: '#94a3b8' }}>{t || '—'}</span>
+    },
+    {
+      title: 'Vai trò',
+      dataIndex: 'role_code',
+      key: 'role_code',
+      width: 150,
+      render: (roleCode) => {
+        const foundRole = roles.find(r => r.code === roleCode);
+        const name = foundRole ? foundRole.name : (roleCode || 'Kiểm thử viên (Tester)');
+        
+        let color = 'default';
+        if (roleCode === 'admin') color = 'magenta';
+        else if (roleCode === 'developer') color = 'blue';
+        else if (roleCode === 'tester') color = 'orange';
+        
+        return <Tag color={color} style={{ fontWeight: 500 }}>{name}</Tag>;
+      }
     },
     {
       title: 'Trạng thái',
@@ -781,6 +1067,49 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 </Row>
 
                 <Row gutter={12}>
+                  <Col span={18}>
+                    <Form.Item
+                      name="file_path"
+                      label={<span style={{ color: '#e2e8f0' }}>Đường dẫn gói Offline hiện hành (ZIP URL)</span>}
+                      extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Tự động đồng bộ từ bản build mới nhất được duyệt (Approved).</span>}
+                    >
+                      <Input 
+                        disabled={true}
+                        placeholder="Chưa có gói offline nào được kích hoạt" 
+                        style={{ background: 'rgba(15, 23, 42, 0.4)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.06)' }} 
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={6}>
+                    <Form.Item
+                      label={<span style={{ color: '#e2e8f0' }}>Tải gói Offline</span>}
+                    >
+                      <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.file_path !== currentValues.file_path}>
+                        {({ getFieldValue }) => {
+                          const filePath = getFieldValue('file_path');
+                          return filePath ? (
+                            <Button
+                              icon={<DownloadOutlined />}
+                              onClick={() => window.open(filePath, '_blank')}
+                              style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a' }}
+                            >
+                              Tải về (.zip)
+                            </Button>
+                          ) : (
+                            <Button
+                              disabled={true}
+                              style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', color: '#64748b' }}
+                            >
+                              Chưa kích hoạt
+                            </Button>
+                          );
+                        }}
+                      </Form.Item>
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Row gutter={12}>
                   <Col span={24}>
                     <Form.Item
                       name="description"
@@ -822,16 +1151,199 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 </Row>
 
                 <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    loading={submitting}
-                    style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
-                  >
-                    Lưu cập nhật
-                  </Button>
+                  {canEdit && (
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      loading={submitting}
+                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
+                    >
+                      Lưu cập nhật
+                    </Button>
+                  )}
                 </Form.Item>
               </Form>
+
+              {/* Build Information Collapse Block */}
+              <Collapse
+                defaultActiveKey={['builds']}
+                ghost
+                style={{ marginTop: '24px' }}
+              >
+                <Collapse.Panel
+                  header={
+                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>
+                      Thông tin bản build & Lịch sử phiên bản
+                    </span>
+                  }
+                  key="builds"
+                  style={{
+                    background: 'rgba(30, 41, 59, 0.4)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderRadius: '5px',
+                    padding: '0px'
+                  }}
+                >
+                  <Card
+                    bordered={false}
+                    background="transparent"
+                    styles={{ body: { padding: '8px 16px', background: 'transparent' } }}
+                    extra={
+                      canAdd && (
+                        <Button
+                          type="primary"
+                          icon={<PlusOutlined />}
+                          onClick={() => {
+                            buildForm.resetFields();
+                            setIsBuildModalOpen(true);
+                          }}
+                          style={{
+                            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                            border: 'none',
+                            fontWeight: 600,
+                            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)'
+                          }}
+                        >
+                          Tạo bản build mới
+                        </Button>
+                      )
+                    }
+                  >
+                    <Table
+                      columns={buildColumns}
+                      dataSource={builds.map(b => ({ ...b, key: b.id }))}
+                      loading={loadingBuilds}
+                      pagination={{ pageSize: 5, showSizeChanger: false }}
+                      locale={{ emptyText: <span style={{ color: '#94a3b8' }}>Chưa có bản build nào được đăng ký.</span> }}
+                      style={{ background: 'transparent' }}
+                      className="custom-table"
+                      size="small"
+                    />
+                  </Card>
+                </Collapse.Panel>
+              </Collapse>
+
+              {/* Build Creation Modal */}
+              <Modal
+                title={<span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>Đăng ký bản build phiên bản mới</span>}
+                open={isBuildModalOpen}
+                onCancel={() => setIsBuildModalOpen(false)}
+                footer={null}
+                destroyOnClose
+                wrapClassName="dark-modal"
+                width={500}
+              >
+                <Form
+                  form={buildForm}
+                  layout="vertical"
+                  onFinish={handleCreateBuild}
+                  requiredMark={false}
+                >
+                  <Form.Item
+                    name="version"
+                    label={<span style={{ color: '#e2e8f0' }}>Số phiên bản (Version)</span>}
+                    rules={[
+                      { required: true, message: 'Vui lòng nhập số phiên bản!' },
+                      { pattern: /^[0-9.]+$/, message: 'Chỉ chấp nhận số và dấu chấm (ví dụ: 1.1.0)' }
+                    ]}
+                  >
+                    <Input
+                      placeholder="Ví dụ: 1.1.0"
+                      style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="changelog"
+                    label={<span style={{ color: '#e2e8f0' }}>Nội dung phát hành (Changelog)</span>}
+                    rules={[{ required: true, message: 'Vui lòng nhập nội dung thay đổi!' }]}
+                  >
+                    <Input.TextArea
+                      rows={4}
+                      placeholder="Mô tả các thay đổi, sửa lỗi hoặc tính năng mới..."
+                      style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="reviewer_notes"
+                    label={<span style={{ color: '#e2e8f0' }}>Ghi chú cho người duyệt (Reviewer Notes)</span>}
+                  >
+                    <Input.TextArea
+                      rows={3}
+                      placeholder="Thông tin tài khoản kiểm thử, ghi chú cấu hình đặc biệt..."
+                      style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                    />
+                  </Form.Item>
+
+                  <Row gutter={12}>
+                    <Col span={15}>
+                      <Form.Item
+                        name="file_path"
+                        label={<span style={{ color: '#e2e8f0' }}>Đường dẫn gói Offline (ZIP URL)</span>}
+                        rules={[{ required: true, message: 'Vui lòng tải lên hoặc điền đường dẫn gói .zip!' }]}
+                        extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Tệp zip chứa static source (HTML/JS/CSS) cho bản build này.</span>}
+                      >
+                        <Input
+                          placeholder="Link tải tệp .zip"
+                          style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={9}>
+                      <Form.Item
+                        label={<span style={{ color: '#e2e8f0' }}>Tải lên file ZIP</span>}
+                      >
+                        <Space direction="vertical" style={{ width: '100%' }} size={4}>
+                          <Upload
+                            beforeUpload={(file) => handleZipUpload(file, buildForm)}
+                            showUploadList={false}
+                            disabled={uploadingZip}
+                          >
+                            <Button
+                              icon={<UploadOutlined />}
+                              loading={uploadingZip}
+                              style={{ width: '100%', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }}
+                            >
+                              {uploadingZip ? 'Tải...' : 'Chọn .zip'}
+                            </Button>
+                          </Upload>
+                          <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.file_path !== currentValues.file_path}>
+                            {({ getFieldValue }) => {
+                              const filePath = getFieldValue('file_path');
+                              return filePath ? (
+                                <Button
+                                  icon={<DownloadOutlined />}
+                                  onClick={() => window.open(filePath, '_blank')}
+                                  style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a', fontSize: '11px', height: '32px' }}
+                                >
+                                  Tải file
+                                </Button>
+                              ) : null;
+                            }}
+                          </Form.Item>
+                        </Space>
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Form.Item style={{ marginBottom: 0, marginTop: '24px', textAlign: 'right' }}>
+                    <Space>
+                      <Button onClick={() => setIsBuildModalOpen(false)} style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}>
+                        Hủy bỏ
+                      </Button>
+                      <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={submittingBuild}
+                        style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
+                      >
+                        Đăng ký
+                      </Button>
+                    </Space>
+                  </Form.Item>
+                </Form>
+              </Modal>
 
               {/* Danger Zone Container */}
               <div style={{
@@ -870,8 +1382,9 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   </div>
                   <Button
                     onClick={() => handleToggleField('is_hidden', (editingApp?.is_hidden === true || editingApp?.isHidden === true))}
+                    disabled={!canEdit}
                     style={{
-                      background: '#ef4444',
+                      background: canEdit ? '#ef4444' : '#64748b',
                       color: '#fff',
                       border: 'none',
                       borderRadius: '5px',
@@ -879,7 +1392,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                       padding: '8px 18px',
                       height: 'auto',
                       fontSize: '12px',
-                      cursor: 'pointer'
+                      cursor: canEdit ? 'pointer' : 'not-allowed'
                     }}
                   >
                     {(editingApp?.is_hidden === true || editingApp?.isHidden === true) ? 'Hiện Mini App' : 'Ẩn Mini App'}
@@ -911,8 +1424,9 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                     cancelText="Hủy"
                   >
                     <Button
+                      disabled={!canDelete}
                       style={{
-                        background: '#ef4444',
+                        background: canDelete ? '#ef4444' : '#64748b',
                         color: '#fff',
                         border: 'none',
                         borderRadius: '5px',
@@ -920,7 +1434,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                         padding: '8px 18px',
                         height: 'auto',
                         fontSize: '12px',
-                        cursor: 'pointer'
+                        cursor: canDelete ? 'pointer' : 'not-allowed'
                       }}
                     >
                       {(editingApp?.is_actived !== false && editingApp?.isActived !== false) ? 'Xóa Mini App' : 'Kích hoạt'}
@@ -958,7 +1472,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 Thêm Thành viên Hàng loạt (Bulk Add)
               </h4>
               <Row gutter={12} align="middle">
-                <Col span={18}>
+                <Col span={12}>
                   <Select
                     mode="multiple"
                     allowClear
@@ -978,11 +1492,24 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   </Select>
                 </Col>
                 <Col span={6}>
+                  <Select
+                    value={bulkAddRoleCode}
+                    onChange={setBulkAddRoleCode}
+                    style={{ width: '100%' }}
+                    placeholder="Chọn vai trò..."
+                    dropdownStyle={{ background: '#1e293b' }}
+                  >
+                    {roles.map(r => (
+                      <Option key={r.code} value={r.code}>{r.name}</Option>
+                    ))}
+                  </Select>
+                </Col>
+                <Col span={6}>
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
                     block
-                    disabled={bulkAddUserIds.length === 0 || !currentUser}
+                    disabled={bulkAddUserIds.length === 0 || !currentUser || !canEdit}
                     onClick={handleBulkAddMembers}
                     loading={memberBulkActionLoading}
                     style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
@@ -999,13 +1526,14 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 Đã chọn: <strong style={{ color: '#6366f1' }}>{selectedMemberIds.length}</strong> thành viên
               </span>
               {selectedMemberIds.length > 0 && (
-                <Space>
+                <Space wrap>
                   <Button
                     type="primary"
                     size="small"
                     icon={<CheckCircleOutlined />}
                     onClick={() => handleBulkUpdateMemberStatus(1)}
                     loading={memberBulkActionLoading}
+                    disabled={!canEdit}
                     style={{ background: '#10b981', border: 'none' }}
                   >
                     Duyệt hoạt động
@@ -1016,21 +1544,45 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                     icon={<StopOutlined />}
                     onClick={() => handleBulkUpdateMemberStatus(2)}
                     loading={memberBulkActionLoading}
+                    disabled={!canEdit}
                     style={{ background: '#f59e0b', border: 'none' }}
                   >
                     Khóa tạm thời
                   </Button>
+
+                  {roles.length > 0 && (
+                    <>
+                      <Divider type="vertical" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
+                      <span style={{ color: '#94a3b8', fontSize: '12px' }}>Gán vai trò:</span>
+                      {roles.map(r => (
+                        <Button
+                          key={r.code}
+                          size="small"
+                          onClick={() => handleBulkUpdateMemberRole(r.code)}
+                          loading={memberBulkActionLoading}
+                          disabled={!canEdit}
+                          style={{ background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', color: '#a5b4fc', fontSize: '11px', borderRadius: '4px' }}
+                        >
+                          {r.name}
+                        </Button>
+                      ))}
+                    </>
+                  )}
+
+                  <Divider type="vertical" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
                   <Popconfirm
                     title="Xác nhận xóa hàng loạt thành viên đã chọn?"
                     onConfirm={handleBulkRemoveMembers}
                     okText="Xóa"
                     cancelText="Hủy"
+                    disabled={!canDelete}
                   >
                     <Button
                       danger
                       size="small"
                       icon={<DeleteOutlined />}
                       loading={memberBulkActionLoading}
+                      disabled={!canDelete}
                     >
                       Xóa khỏi nhóm
                     </Button>
@@ -1094,19 +1646,21 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   <Option key={c.id} value={c.id}>{c.name}</Option>
                 ))}
               </Select>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleCreateClick}
-                style={{
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                  border: 'none',
-                  fontWeight: 600,
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
-                }}
-              >
-                Tạo Mini App
-              </Button>
+              {canAdd && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleCreateClick}
+                  style={{
+                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    border: 'none',
+                    fontWeight: 600,
+                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+                  }}
+                >
+                  Tạo Mini App
+                </Button>
+              )}
               <Button
                 type="primary"
                 icon={<ReloadOutlined />}
@@ -1272,6 +1826,49 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               </Row>
 
               <Row gutter={12}>
+                <Col span={18}>
+                  <Form.Item
+                    name="file_path"
+                    label={<span style={{ color: '#e2e8f0' }}>Đường dẫn gói Offline hiện hành (ZIP URL)</span>}
+                    extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Tự động đồng bộ từ bản build mới nhất được duyệt (Approved).</span>}
+                  >
+                    <Input 
+                      disabled={true}
+                      placeholder="Chưa có gói offline nào được kích hoạt" 
+                      style={{ background: 'rgba(15, 23, 42, 0.4)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.06)' }} 
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={6}>
+                  <Form.Item
+                    label={<span style={{ color: '#e2e8f0' }}>Tải gói Offline</span>}
+                  >
+                    <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.file_path !== currentValues.file_path}>
+                      {({ getFieldValue }) => {
+                        const filePath = getFieldValue('file_path');
+                        return filePath ? (
+                          <Button
+                            icon={<DownloadOutlined />}
+                            onClick={() => window.open(filePath, '_blank')}
+                            style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a' }}
+                          >
+                            Tải về (.zip)
+                          </Button>
+                        ) : (
+                          <Button
+                            disabled={true}
+                            style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', color: '#64748b' }}
+                          >
+                            Chưa kích hoạt
+                          </Button>
+                        );
+                      }}
+                    </Form.Item>
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Row gutter={12}>
                 <Col span={24}>
                   <Form.Item
                     name="description"
@@ -1337,14 +1934,29 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   <Button onClick={() => navigate('/mini-apps')} style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}>
                     Hủy bỏ
                   </Button>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    loading={submitting}
-                    style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
-                  >
-                    {editingApp ? 'Lưu cập nhật' : 'Tạo mới'}
-                  </Button>
+                  {editingApp ? (
+                    canEdit && (
+                      <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={submitting}
+                        style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
+                      >
+                        Lưu cập nhật
+                      </Button>
+                    )
+                  ) : (
+                    canAdd && (
+                      <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={submitting}
+                        style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
+                      >
+                        Tạo mới
+                      </Button>
+                    )
+                  )}
                 </Space>
               </Form.Item>
             </Form>
@@ -1374,7 +1986,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             Thêm Thành viên Hàng loạt (Bulk Add)
           </h4>
           <Row gutter={12} align="middle">
-            <Col span={17}>
+            <Col span={11}>
               <Select
                 mode="multiple"
                 allowClear
@@ -1390,6 +2002,19 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   <Option key={user.id} value={user.id}>
                     {user.full_name || user.fullName || user.username} (@{user.username})
                   </Option>
+                ))}
+              </Select>
+            </Col>
+            <Col span={6}>
+              <Select
+                value={bulkAddRoleCode}
+                onChange={setBulkAddRoleCode}
+                style={{ width: '100%' }}
+                placeholder="Chọn vai trò..."
+                dropdownStyle={{ background: '#1e293b' }}
+              >
+                {roles.map(r => (
+                  <Option key={r.code} value={r.code}>{r.name}</Option>
                 ))}
               </Select>
             </Col>
@@ -1415,7 +2040,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             Đã chọn: <strong style={{ color: '#6366f1' }}>{selectedMemberIds.length}</strong> thành viên
           </span>
           {selectedMemberIds.length > 0 && (
-            <Space>
+            <Space wrap>
               <Button
                 type="primary"
                 size="small"
@@ -1436,6 +2061,26 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               >
                 Khóa
               </Button>
+
+              {roles.length > 0 && (
+                <>
+                  <Divider type="vertical" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
+                  <span style={{ color: '#94a3b8', fontSize: '12px' }}>Gán vai trò:</span>
+                  {roles.map(r => (
+                    <Button
+                      key={r.code}
+                      size="small"
+                      onClick={() => handleBulkUpdateMemberRole(r.code)}
+                      loading={memberBulkActionLoading}
+                      style={{ background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', color: '#a5b4fc', fontSize: '11px', borderRadius: '4px' }}
+                    >
+                      {r.name}
+                    </Button>
+                  ))}
+                </>
+              )}
+
+              <Divider type="vertical" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
               <Popconfirm
                 title="Xác nhận xóa hàng loạt thành viên đã chọn?"
                 onConfirm={handleBulkRemoveMembers}
