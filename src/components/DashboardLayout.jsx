@@ -45,6 +45,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
   }, []);
 
   const menuIcons = {
+    'dashboard': <DashboardOutlined />,
     'mini-apps': <AppstoreOutlined />,
     'categories': <TagsOutlined />,
     'users': <TeamOutlined />,
@@ -60,7 +61,12 @@ export default function DashboardLayout({ currentUser, onLogout }) {
       key: menu.key,
       icon: menuIcons[menu.key] || <AppstoreOutlined />,
       label: menu.label
-    }));
+    }))
+    .sort((a, b) => {
+      if (a.key === 'dashboard') return -1;
+      if (b.key === 'dashboard') return 1;
+      return 0;
+    });
 
   const handleLogout = () => {
     clearAuthData();
@@ -349,14 +355,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
               selectedKeys={[getActiveKey()]}
               onClick={({ key }) => navigate(`/${key}`)}
               style={{ background: 'transparent', marginTop: '16px' }}
-              items={[
-                {
-                  key: 'dashboard',
-                  icon: <DashboardOutlined style={{ fontSize: '14px' }} />,
-                  label: 'Tổng quan'
-                },
-                ...filteredMenuItems
-              ].map(item => ({
+              items={filteredMenuItems.map(item => ({
                 ...item,
                 style: {
                   borderRadius: '5px',
