@@ -107,14 +107,14 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             console.error(err);
           }
         }
-        
+
         try {
           const response = await api.get(`/mini-apps/${id}`);
           const appData = response.data || response;
           if (appData) {
             const cat = cats.find(c => c.id.toString() === (appData.category_id || appData.categoryId)?.toString());
             const catName = cat ? cat.name : 'Chưa phân loại';
-            
+
             // Populate workspaceApp to render Context Sidebar
             if (setWorkspaceApp) {
               setWorkspaceApp({
@@ -122,10 +122,10 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 category_name: catName
               });
             }
-            
+
             setEditingApp(appData);
             setActiveApp(appData);
-            
+
             // Hydrate configuration form
             form.setFieldsValue({
               app_id: appData.app_id || appData.appId,
@@ -143,8 +143,9 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               privacy_policy_url: appData.privacy_policy_url || appData.privacyPolicyUrl,
               permissions: appData.permissions || [],
               file_path: appData.file_path || appData.filePath || '',
+              sub_apps: appData.sub_apps || appData.subApps || [],
             });
-            
+
             // Fetch membership list
             await fetchAppMembers(appData.id);
             await fetchUsers();
@@ -156,14 +157,14 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           setLoading(false);
         }
       };
-      
+
       loadWorkspace();
     } else {
       if (setWorkspaceApp) {
         setWorkspaceApp(null);
       }
     }
-    
+
     return () => {
       if (setWorkspaceApp) {
         setWorkspaceApp(null);
@@ -194,6 +195,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             privacy_policy_url: app.privacy_policy_url || app.privacyPolicyUrl,
             permissions: app.permissions || [],
             file_path: app.file_path || app.filePath || '',
+            sub_apps: app.sub_apps || app.subApps || [],
           });
         }
       } else if (!id) {
@@ -205,6 +207,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           is_actived: true,
           permissions: [],
           file_path: '',
+          sub_apps: [],
         });
       }
     }
@@ -260,10 +263,10 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         status: newStatus
       });
       message.success(newStatus === 2 ? 'Đã duyệt bản build thành công!' : 'Đã từ chối bản build.');
-      
+
       // Reload builds list
       await fetchAppBuilds(id);
-      
+
       // If approved, reload parent app details to sync the version in state
       const response = await api.get(`/mini-apps/${id}`);
       const appData = response.data || response;
@@ -507,16 +510,23 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         privacy_policy_url: editingApp.privacy_policy_url || editingApp.privacyPolicyUrl || '',
         permissions: editingApp.permissions || [],
         file_path: editingApp.file_path || editingApp.filePath || '',
+        sub_apps: editingApp.sub_apps || editingApp.subApps || [],
         is_hidden: fieldName === 'is_hidden' ? newValue : (editingApp.is_hidden === true || editingApp.isHidden === true),
         is_actived: fieldName === 'is_actived' ? newValue : (editingApp.is_actived !== false && editingApp.isActived !== false),
+        is_maintenance: fieldName === 'is_maintenance' ? newValue : (editingApp.is_maintenance === true || editingApp.isMaintenance === true),
       };
 
       await api.put(`/mini-apps/${editingApp.id}`, payload);
-      
-      const successMsg = fieldName === 'is_hidden' 
-        ? (newValue ? 'Đã ẩn Mini App khỏi Store!' : 'Đã hiển thị Mini App tại Store!')
-        : (newValue ? 'Đã kích hoạt Mini App thành công!' : 'Đã tạm dừng hoạt động Mini App!');
-      
+
+      let successMsg = '';
+      if (fieldName === 'is_hidden') {
+        successMsg = newValue ? 'Đã ẩn Mini App khỏi Store!' : 'Đã hiển thị Mini App tại Store!';
+      } else if (fieldName === 'is_actived') {
+        successMsg = newValue ? 'Đã kích hoạt Mini App thành công!' : 'Đã tạm dừng hoạt động Mini App!';
+      } else if (fieldName === 'is_maintenance') {
+        successMsg = newValue ? 'Đã bật chế độ bảo trì cho Mini App!' : 'Đã tắt chế độ bảo trì, Mini App hoạt động bình thường!';
+      }
+
       message.success(successMsg);
 
       // Refresh workspace data
@@ -525,18 +535,18 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       if (appData) {
         const cat = categories.find(c => c.id.toString() === (appData.category_id || appData.categoryId)?.toString());
         const catName = cat ? cat.name : 'Chưa phân loại';
-        
+
         const newAppInfo = {
           ...appData,
           category_name: catName
         };
-        
+
         if (setWorkspaceApp) {
           setWorkspaceApp(newAppInfo);
         }
         setEditingApp(appData);
         setActiveApp(appData);
-        
+
         // Update form values
         form.setFieldsValue({
           app_id: appData.app_id || appData.appId,
@@ -550,9 +560,11 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           requires_auth: appData.requires_auth === true || appData.requiresAuth === true,
           is_hidden: appData.is_hidden === true || appData.isHidden === true,
           is_actived: appData.is_actived !== false && appData.isActived !== false,
+          is_maintenance: appData.is_maintenance === true || appData.isMaintenance === true,
           terms_url: appData.terms_url || appData.termsUrl,
           privacy_policy_url: appData.privacy_policy_url || appData.privacyPolicyUrl,
           permissions: appData.permissions || [],
+          sub_apps: appData.sub_apps || appData.subApps || [],
         });
       }
     } catch (err) {
@@ -577,10 +589,12 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         requires_auth: !!values.requires_auth,
         is_hidden: isWorkspaceView ? (editingApp.is_hidden === true || editingApp.isHidden === true) : !!values.is_hidden,
         is_actived: isWorkspaceView ? (editingApp.is_actived !== false && editingApp.isActived !== false) : !!values.is_actived,
+        is_maintenance: isWorkspaceView ? (editingApp.is_maintenance === true || editingApp.isMaintenance === true) : !!values.is_maintenance,
         terms_url: values.terms_url,
         privacy_policy_url: values.privacy_policy_url,
         permissions: values.permissions || [],
         file_path: values.file_path || '',
+        sub_apps: values.sub_apps || [],
       };
 
       if (editingApp) {
@@ -599,7 +613,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         await api.post('/mini-apps', payload);
         message.success('Tạo Mini App mới thành công!');
       }
-      
+
       if (!isWorkspaceView) {
         navigate('/mini-apps');
       }
@@ -752,7 +766,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       title: 'Ứng Dụng',
       key: 'app_name',
       render: (_, record) => (
-        <span 
+        <span
           style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
           onClick={() => {
             if (setWorkspaceTab) setWorkspaceTab('overview');
@@ -878,13 +892,13 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
 
         return (
           <Dropdown menu={{ items, onClick: handleMenuClick }} trigger={['click']} placement="bottomRight">
-            <Button 
-              type="primary" 
-              size="small" 
+            <Button
+              type="primary"
+              size="small"
               icon={<MoreOutlined style={{ fontSize: '16px' }} />}
-              style={{ 
-                background: 'rgba(99, 102, 241, 0.15)', 
-                border: '1px solid rgba(99, 102, 241, 0.3)', 
+              style={{
+                background: 'rgba(99, 102, 241, 0.15)',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
                 color: '#a5b4fc',
                 borderRadius: '4px',
                 display: 'inline-flex',
@@ -926,12 +940,12 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       render: (roleCode) => {
         const foundRole = roles.find(r => r.code === roleCode);
         const name = foundRole ? foundRole.name : (roleCode || 'Kiểm thử viên (Tester)');
-        
+
         let color = 'default';
         if (roleCode === 'admin') color = 'magenta';
         else if (roleCode === 'developer') color = 'blue';
         else if (roleCode === 'tester') color = 'orange';
-        
+
         return <Tag color={color} style={{ fontWeight: 500 }}>{name}</Tag>;
       }
     },
@@ -1109,10 +1123,10 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                       label={<span style={{ color: '#e2e8f0' }}>Đường dẫn gói Offline hiện hành (ZIP URL)</span>}
                       extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Tự động đồng bộ từ bản build mới nhất được duyệt (Approved).</span>}
                     >
-                      <Input 
+                      <Input
                         disabled={true}
-                        placeholder="Chưa có gói offline nào được kích hoạt" 
-                        style={{ background: 'rgba(15, 23, 42, 0.4)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.06)' }} 
+                        placeholder="Chưa có gói offline nào được kích hoạt"
+                        style={{ background: 'rgba(15, 23, 42, 0.4)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.06)' }}
                       />
                     </Form.Item>
                   </Col>
@@ -1173,6 +1187,86 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   </Col>
                 </Row>
 
+                <Divider orientation="left" style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '24px 0 16px' }}>
+                  <span style={{ color: '#818cf8', fontSize: '13px', fontWeight: 600 }}>Cấu hình Phân hệ con (Sub Apps / Sub Routes)</span>
+                </Divider>
+
+                <Form.List name="sub_apps">
+                  {(fields, { add, remove }) => (
+                    <div style={{ marginBottom: '24px' }}>
+                      {fields.map(({ key, name, ...restField }) => (
+                        <Row key={key} gutter={12} align="middle" style={{ marginBottom: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <Col span={5}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'sub_app_id']}
+                              rules={[{ required: true, message: 'Nhập mã sub-app!' }]}
+                              style={{ marginBottom: 0 }}
+                            >
+                              <Input placeholder="Mã (e.g. services)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'name']}
+                              rules={[{ required: true, message: 'Nhập tên hiển thị!' }]}
+                              style={{ marginBottom: 0 }}
+                            >
+                              <Input placeholder="Tên hiển thị (e.g. Dịch vụ)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'path']}
+                              rules={[{ required: true, message: 'Nhập đường dẫn!' }]}
+                              style={{ marginBottom: 0 }}
+                            >
+                              <Input placeholder="Path (e.g. #/services)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={5} style={{ display: 'flex', justifyContent: 'center' }}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'is_maintenance']}
+                              valuePropName="checked"
+                              style={{ marginBottom: 0 }}
+                            >
+                              <Switch checkedChildren="Bảo trì" unCheckedChildren="Hoạt động" />
+                            </Form.Item>
+                          </Col>
+                          <Col span={2} style={{ textAlign: 'center' }}>
+                            <Button
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                              onClick={() => remove(name)}
+                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            />
+                          </Col>
+                        </Row>
+                      ))}
+                      <Form.Item style={{ marginBottom: 0 }}>
+                        <Button
+                          type="dashed"
+                          onClick={() => add()}
+                          block
+                          icon={<PlusOutlined />}
+                          style={{
+                            background: 'rgba(99, 102, 241, 0.05)',
+                            color: '#a5b4fc',
+                            borderColor: 'rgba(99, 102, 241, 0.3)',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          Thêm phân hệ con (Sub App)
+                        </Button>
+                      </Form.Item>
+                    </div>
+                  )}
+                </Form.List>
+
                 <Row gutter={12} style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '5px', marginBottom: '24px' }}>
                   <Col span={24}>
                     <Form.Item
@@ -1218,7 +1312,44 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 }}>
                   Vùng nguy hiểm
                 </h3>
-                
+
+                {/* Row 0: Chế độ bảo trì Mini App */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingBottom: '16px',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+                }}>
+                  <div>
+                    <h4 style={{ color: '#f8fafc', margin: '0 0 4px 0', fontSize: '13px', fontWeight: 600 }}>
+                      {(editingApp?.is_maintenance === true || editingApp?.isMaintenance === true) ? 'Tắt bảo trì Mini App' : 'Bật bảo trì Mini App'}
+                    </h4>
+                    <span style={{ color: '#94a3b8', fontSize: '12px' }}>
+                      {(editingApp?.is_maintenance === true || editingApp?.isMaintenance === true)
+                        ? 'Mini App đang được bảo trì. Click để tắt chế độ bảo trì.'
+                        : 'Bật chế độ bảo trì cho toàn bộ Mini App (người dùng không thể truy cập).'}
+                    </span>
+                  </div>
+                  <Button
+                    onClick={() => handleToggleField('is_maintenance', (editingApp?.is_maintenance === true || editingApp?.isMaintenance === true))}
+                    disabled={!canEdit}
+                    style={{
+                      background: (editingApp?.is_maintenance === true || editingApp?.isMaintenance === true) ? '#10b981' : '#f59e0b',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '5px',
+                      fontWeight: 600,
+                      padding: '8px 18px',
+                      height: 'auto',
+                      fontSize: '12px',
+                      cursor: canEdit ? 'pointer' : 'not-allowed'
+                    }}
+                  >
+                    {(editingApp?.is_maintenance === true || editingApp?.isMaintenance === true) ? 'Tắt bảo trì' : 'Bật bảo trì'}
+                  </Button>
+                </div>
+
                 {/* Row 1: Ẩn/Hiện Mini App */}
                 <div style={{
                   display: 'flex',
@@ -1863,10 +1994,10 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                     label={<span style={{ color: '#e2e8f0' }}>Đường dẫn gói Offline hiện hành (ZIP URL)</span>}
                     extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Tự động đồng bộ từ bản build mới nhất được duyệt (Approved).</span>}
                   >
-                    <Input 
+                    <Input
                       disabled={true}
-                      placeholder="Chưa có gói offline nào được kích hoạt" 
-                      style={{ background: 'rgba(15, 23, 42, 0.4)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.06)' }} 
+                      placeholder="Chưa có gói offline nào được kích hoạt"
+                      style={{ background: 'rgba(15, 23, 42, 0.4)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.06)' }}
                     />
                   </Form.Item>
                 </Col>
@@ -1927,8 +2058,88 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 </Col>
               </Row>
 
+              <Divider orientation="left" style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '24px 0 16px' }}>
+                <span style={{ color: '#818cf8', fontSize: '13px', fontWeight: 600 }}>Cấu hình Phân hệ con (Sub Apps / Sub Routes)</span>
+              </Divider>
+
+              <Form.List name="sub_apps">
+                {(fields, { add, remove }) => (
+                  <div style={{ marginBottom: '24px' }}>
+                    {fields.map(({ key, name, ...restField }) => (
+                      <Row key={key} gutter={12} align="middle" style={{ marginBottom: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <Col span={5}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'sub_app_id']}
+                            rules={[{ required: true, message: 'Nhập mã sub-app!' }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input placeholder="Mã (e.g. services)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={6}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'name']}
+                            rules={[{ required: true, message: 'Nhập tên hiển thị!' }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input placeholder="Tên hiển thị (e.g. Dịch vụ)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={6}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'path']}
+                            rules={[{ required: true, message: 'Nhập đường dẫn!' }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input placeholder="Path (e.g. #/services)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={5} style={{ display: 'flex', justifyContent: 'center' }}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'is_maintenance']}
+                            valuePropName="checked"
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Switch checkedChildren="Bảo trì" unCheckedChildren="Hoạt động" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={2} style={{ textAlign: 'center' }}>
+                          <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => remove(name)}
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                          />
+                        </Col>
+                      </Row>
+                    ))}
+                    <Form.Item style={{ marginBottom: 0 }}>
+                      <Button
+                        type="dashed"
+                        onClick={() => add()}
+                        block
+                        icon={<PlusOutlined />}
+                        style={{
+                          background: 'rgba(99, 102, 241, 0.05)',
+                          color: '#a5b4fc',
+                          borderColor: 'rgba(99, 102, 241, 0.3)',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        Thêm phân hệ con (Sub App)
+                      </Button>
+                    </Form.Item>
+                  </div>
+                )}
+              </Form.List>
+
               <Row gutter={12} style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '5px', marginBottom: '24px' }}>
-                <Col span={8}>
+                <Col span={6}>
                   <Form.Item
                     name="requires_auth"
                     label={<span style={{ color: '#e2e8f0' }}>Yêu cầu Auth Login</span>}
@@ -1938,7 +2149,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                     <Switch />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
                   <Form.Item
                     name="is_hidden"
                     label={<span style={{ color: '#e2e8f0' }}>Ẩn khỏi Store</span>}
@@ -1948,10 +2159,20 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                     <Switch />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
                   <Form.Item
                     name="is_actived"
                     label={<span style={{ color: '#e2e8f0' }}>Kích hoạt Hoạt động</span>}
+                    valuePropName="checked"
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Switch />
+                  </Form.Item>
+                </Col>
+                <Col span={6}>
+                  <Form.Item
+                    name="is_maintenance"
+                    label={<span style={{ color: '#e2e8f0' }}>Chế độ Bảo trì</span>}
                     valuePropName="checked"
                     style={{ marginBottom: 0 }}
                   >
