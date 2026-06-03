@@ -1,5 +1,5 @@
-const API_BASE_URL = 'https://miniapps-api-2zb0.onrender.com/api';
-// const API_BASE_URL = 'http://localhost:3000/api';
+// const API_BASE_URL = 'https://miniapps-api-2zb0.onrender.com/api';
+const API_BASE_URL = 'http://localhost:3000/api';
 
 // Helper to get authentication data from localStorage
 export const getAuthData = () => {

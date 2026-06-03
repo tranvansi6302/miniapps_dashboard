@@ -9,7 +9,8 @@ import {
   UserOutlined,
   ArrowLeftOutlined,
   CopyOutlined,
-  DashboardOutlined
+  DashboardOutlined,
+  MenuOutlined
 } from '@ant-design/icons';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { clearAuthData, api } from '../services/api';
@@ -50,7 +51,9 @@ export default function DashboardLayout({ currentUser, onLogout }) {
     'categories': <TagsOutlined />,
     'users': <TeamOutlined />,
     'scripts': <BranchesOutlined />,
+    'app-menus': <MenuOutlined />,
   };
+
 
   const filteredMenuItems = menus
     .filter(menu => {
@@ -81,8 +84,10 @@ export default function DashboardLayout({ currentUser, onLogout }) {
     if (path.startsWith('/categories')) return 'categories';
     if (path.startsWith('/users')) return 'users';
     if (path.startsWith('/scripts')) return 'scripts';
+    if (path.startsWith('/app-menus')) return 'app-menus';
     return 'dashboard';
   };
+
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#090d16', fontFamily: 'Inter, sans-serif' }}>

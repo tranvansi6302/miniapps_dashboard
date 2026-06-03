@@ -10,6 +10,8 @@ import CategoryTab from './components/CategoryTab';
 import UserTab from './components/UserTab';
 import ScriptTab from './components/ScriptTab';
 import DashboardTab from './components/DashboardTab';
+import AppMenuTab from './components/AppMenuTab';
+
 
 function PermissionGuard({ currentUser, menuKey, children }) {
   if (!currentUser) return <Navigate to="/login" replace />;
@@ -149,6 +151,10 @@ export default function App() {
             
             <Route path="categories" element={<PermissionGuard currentUser={currentUser} menuKey="categories"><CategoryTab currentUser={currentUser} /></PermissionGuard>} />
             
+            <Route path="app-menus" element={<PermissionGuard currentUser={currentUser} menuKey="app-menus"><AppMenuTab currentUser={currentUser} /></PermissionGuard>} />
+            <Route path="app-menus/new" element={<PermissionGuard currentUser={currentUser} menuKey="app-menus"><AppMenuTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
+            <Route path="app-menus/:id/edit" element={<PermissionGuard currentUser={currentUser} menuKey="app-menus"><AppMenuTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
+
             <Route path="users" element={<PermissionGuard currentUser={currentUser} menuKey="users"><UserTab currentUser={currentUser} /></PermissionGuard>} />
             
             <Route path="scripts" element={<PermissionGuard currentUser={currentUser} menuKey="scripts"><ScriptTab currentUser={currentUser} /></PermissionGuard>} />
