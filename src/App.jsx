@@ -11,6 +11,7 @@ import UserTab from './components/UserTab';
 import ScriptTab from './components/ScriptTab';
 import DashboardTab from './components/DashboardTab';
 import AppMenuTab from './components/AppMenuTab';
+import AccountMenuTab from './components/AccountMenuTab';
 
 
 function PermissionGuard({ currentUser, menuKey, children }) {
@@ -154,6 +155,8 @@ export default function App() {
             <Route path="app-menus" element={<PermissionGuard currentUser={currentUser} menuKey="app-menus"><AppMenuTab currentUser={currentUser} /></PermissionGuard>} />
             <Route path="app-menus/new" element={<PermissionGuard currentUser={currentUser} menuKey="app-menus"><AppMenuTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
             <Route path="app-menus/:id/edit" element={<PermissionGuard currentUser={currentUser} menuKey="app-menus"><AppMenuTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
+
+            <Route path="account-menus" element={<PermissionGuard currentUser={currentUser} menuKey="account-menus"><AccountMenuTab currentUser={currentUser} /></PermissionGuard>} />
 
             <Route path="users" element={<PermissionGuard currentUser={currentUser} menuKey="users"><UserTab currentUser={currentUser} /></PermissionGuard>} />
             

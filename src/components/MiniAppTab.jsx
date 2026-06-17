@@ -144,6 +144,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               permissions: appData.permissions || [],
               file_path: appData.file_path || appData.filePath || '',
               sub_apps: appData.sub_apps || appData.subApps || [],
+              policy: appData.policy || { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
             });
 
             // Fetch membership list
@@ -196,6 +197,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             permissions: app.permissions || [],
             file_path: app.file_path || app.filePath || '',
             sub_apps: app.sub_apps || app.subApps || [],
+            policy: app.policy || { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
           });
         }
       } else if (!id) {
@@ -208,6 +210,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           permissions: [],
           file_path: '',
           sub_apps: [],
+          policy: { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
         });
       }
     }
@@ -511,6 +514,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         permissions: editingApp.permissions || [],
         file_path: editingApp.file_path || editingApp.filePath || '',
         sub_apps: editingApp.sub_apps || editingApp.subApps || [],
+        policy: editingApp.policy || {},
         is_hidden: fieldName === 'is_hidden' ? newValue : (editingApp.is_hidden === true || editingApp.isHidden === true),
         is_actived: fieldName === 'is_actived' ? newValue : (editingApp.is_actived !== false && editingApp.isActived !== false),
         is_maintenance: fieldName === 'is_maintenance' ? newValue : (editingApp.is_maintenance === true || editingApp.isMaintenance === true),
@@ -565,6 +569,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           privacy_policy_url: appData.privacy_policy_url || appData.privacyPolicyUrl,
           permissions: appData.permissions || [],
           sub_apps: appData.sub_apps || appData.subApps || [],
+          policy: appData.policy || {},
         });
       }
     } catch (err) {
@@ -595,6 +600,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         permissions: values.permissions || [],
         file_path: values.file_path || '',
         sub_apps: values.sub_apps || [],
+        policy: values.policy || {},
       };
 
       if (editingApp) {
@@ -2054,6 +2060,51 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                       dropdownStyle={{ background: '#1e293b' }}
                       options={PERMISSIONS_LIST}
                     />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Divider orientation="left" style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '24px 0 16px' }}>
+                <span style={{ color: '#818cf8', fontSize: '13px', fontWeight: 600 }}>Cấu hình Chính sách bảo mật (Security Policy)</span>
+              </Divider>
+
+              <Row gutter={12}>
+                <Col span={24}>
+                  <Form.Item
+                    name={['policy', 'allowedDomains']}
+                    label={<span style={{ color: '#e2e8f0' }}>Tên miền được phép truy cập (Allowed Domains)</span>}
+                    extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Nhập tên miền và bấm Enter (ví dụ: mini.example.com)</span>}
+                  >
+                    <Select
+                      mode="tags"
+                      style={{ width: '100%' }}
+                      placeholder="Nhập tên miền..."
+                      tokenSeparators={[',', ' ']}
+                      dropdownStyle={{ display: 'none' }}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Row gutter={12} style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '5px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <Col span={12}>
+                  <Form.Item
+                    name={['policy', 'allowExternalNavigation']}
+                    label={<span style={{ color: '#e2e8f0' }}>Cho phép điều hướng ra ngoài app (External Navigation)</span>}
+                    valuePropName="checked"
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Switch />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name={['policy', 'allowFileDownload']}
+                    label={<span style={{ color: '#e2e8f0' }}>Cho phép tải tệp tin (File Download)</span>}
+                    valuePropName="checked"
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Switch />
                   </Form.Item>
                 </Col>
               </Row>

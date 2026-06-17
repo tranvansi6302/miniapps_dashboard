@@ -52,6 +52,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
     'users': <TeamOutlined />,
     'scripts': <BranchesOutlined />,
     'app-menus': <MenuOutlined />,
+    'account-menus': <UserOutlined />,
   };
 
 
@@ -85,6 +86,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
     if (path.startsWith('/users')) return 'users';
     if (path.startsWith('/scripts')) return 'scripts';
     if (path.startsWith('/app-menus')) return 'app-menus';
+    if (path.startsWith('/account-menus')) return 'account-menus';
     return 'dashboard';
   };
 

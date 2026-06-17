@@ -24,16 +24,20 @@ const safeColor = (color, fallback) => {
   if (hexBody.length === 5) {
     return '#' + hexBody + hexBody.charAt(4);
   }
-  if (hexBody.length === 4) {
-    return '#' + hexBody + hexBody.substring(2);
-  }
-  
   const reg = /^#([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$/i;
   if (reg.test(trimmed)) {
     return trimmed;
   }
   return fallback;
 };
+
+const PERMISSIONS_LIST = [
+  { value: 'camera', label: 'Camera' },
+  { value: 'location', label: 'Vị trí (Location)' },
+  { value: 'storage', label: 'Lưu trữ (Storage)' },
+  { value: 'microphone', label: 'Microphone' },
+  { value: 'push_notification', label: 'Thông báo đẩy' }
+];
 
 export default function AppMenuTab({ currentUser, forceFormView = false }) {
   const [menus, setMenus] = useState([]);
@@ -112,6 +116,10 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
         file_path: record.file_path,
         url: record.url,
         is_hidden: record.is_hidden,
+        permissions: record.permissions || [],
+        policy: record.policy || { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
+        file_hash: record.file_hash,
+        file_checksum: record.file_checksum
       });
       setSelectedAppId(record.app_id);
       setBgColor(record.mnu_bg_color || '');
@@ -140,7 +148,10 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
           mnu_order: 0,
           mnu_position: 'SIDEBAR',
           requires_auth: false,
-          is_hidden: false,
+          permissions: [],
+          policy: { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
+          file_hash: '',
+          file_checksum: ''
         });
         setSelectedAppId(null);
         setBgColor('');
@@ -619,18 +630,32 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
                       </Space>
                     </div>
                   ) : (
-                    <Row gutter={16}>
-                      <Col span={12}>
-                        <Form.Item name="version" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Phiên bản</span>}>
-                          <Input placeholder="1.0.0" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item name="file_path" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Đường dẫn file build (.zip)</span>}>
-                          <Input placeholder="Đường dẫn file zip" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item name="version" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Phiên bản</span>}>
+                            <Input placeholder="1.0.0" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item name="file_path" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Đường dẫn file build (.zip)</span>}>
+                            <Input placeholder="Đường dẫn file zip" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item name="file_hash" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>File Hash (SHA-256)</span>}>
+                            <Input placeholder="Mã băm SHA-256 của file zip" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item name="file_checksum" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>File Checksum</span>}>
+                            <Input placeholder="Mã kiểm tra tính toàn vẹn" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </>
                   )}
                 </div>
               </Col>
@@ -753,6 +778,68 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
                     <Col span={12}>
                       <Form.Item name="is_hidden" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Ẩn nút tiêu đề (..., x)</span>} valuePropName="checked">
                         <Switch checkedChildren="Ẩn" unCheckedChildren="Hiện" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Divider orientation="left" style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '16px 0 12px' }}>
+                    <span style={{ color: '#818cf8', fontSize: '12px', fontWeight: 600 }}>Cấu hình Quyền & Chính sách (Permissions & Policy)</span>
+                  </Divider>
+
+                  <Row gutter={12}>
+                    <Col span={24}>
+                      <Form.Item
+                        name="permissions"
+                        label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Quyền truy cập (Permissions)</span>}
+                      >
+                        <Select
+                          mode="multiple"
+                          placeholder="Chọn các quyền yêu cầu..."
+                          style={{ width: '100%' }}
+                          dropdownStyle={{ background: '#1e293b' }}
+                          options={PERMISSIONS_LIST}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={12}>
+                    <Col span={24}>
+                      <Form.Item
+                        name={['policy', 'allowedDomains']}
+                        label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Tên miền được phép truy cập (Allowed Domains)</span>}
+                        extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Nhập tên miền và bấm Enter (ví dụ: homebooking-user.vercel.app)</span>}
+                      >
+                        <Select
+                          mode="tags"
+                          style={{ width: '100%' }}
+                          tokenSeparators={[',', ' ']}
+                          placeholder="Nhập tên miền..."
+                          dropdownStyle={{ display: 'none' }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={12} style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '8px' }}>
+                    <Col span={12}>
+                      <Form.Item
+                        name={['policy', 'allowExternalNavigation']}
+                        label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Cho phép điều hướng ra ngoài</span>}
+                        valuePropName="checked"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Switch checkedChildren="Có" unCheckedChildren="Không" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name={['policy', 'allowFileDownload']}
+                        label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Cho phép tải tệp tin</span>}
+                        valuePropName="checked"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Switch checkedChildren="Có" unCheckedChildren="Không" />
                       </Form.Item>
                     </Col>
                   </Row>
