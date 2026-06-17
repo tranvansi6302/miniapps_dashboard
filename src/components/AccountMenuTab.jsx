@@ -28,6 +28,7 @@ const PERMISSIONS_LIST = [
 
 export default function AccountMenuTab({ currentUser }) {
   const [groupedMenus, setGroupedMenus] = useState([]);
+  const [miniApps, setMiniApps] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -77,14 +78,24 @@ export default function AccountMenuTab({ currentUser }) {
     }
   };
 
+  const fetchMiniApps = async () => {
+    try {
+      const res = await api.get('/mini-apps?include_hidden=true&include_inactive=true');
+      setMiniApps(res.data || res || []);
+    } catch (err) {
+      console.error('Không thể tải danh sách Mini Apps:', err);
+    }
+  };
+
   useEffect(() => {
     fetchMenus();
+    fetchMiniApps();
   }, []);
 
   const handleCreateClick = () => {
     setEditingMenu(null);
     form.resetFields();
-    form.setFieldsValue({ key: '', is_hidden: false, requires_auth: false, mnu_order: 1, menu_type: 0, permissions: [], policy: { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false }, version: '', file_path: '', file_hash: '', file_checksum: '' });
+    form.setFieldsValue({ key: '', is_hidden: false, requires_auth: false, mnu_order: 1, menu_type: 0, permissions: [], policy: { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false }, version: '', file_path: '', file_hash: '', file_checksum: '', app_id: undefined });
     setIconUrl('');
     setIconActiveUrl('');
     setRightIconUrl('');
@@ -118,7 +129,8 @@ export default function AccountMenuTab({ currentUser }) {
       version: menu.version || '',
       file_path: menu.file_path || '',
       file_hash: menu.file_hash || '',
-      file_checksum: menu.file_checksum || ''
+      file_checksum: menu.file_checksum || '',
+      app_id: menu.app_id || undefined
     });
     setIconUrl(menu.mnu_image || '');
     setIconActiveUrl(menu.mnu_image_actived || '');
@@ -164,7 +176,8 @@ export default function AccountMenuTab({ currentUser }) {
         version: values.version || null,
         file_path: values.file_path || null,
         file_hash: values.file_hash || null,
-        file_checksum: values.file_checksum || null
+        file_checksum: values.file_checksum || null,
+        app_id: values.app_id || null
       };
 
       if (editingMenu) {
@@ -442,6 +455,24 @@ export default function AccountMenuTab({ currentUser }) {
                   placeholder="Ví dụ: hb-vw-mn-ac-profile"
                   style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
                 />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={12}>
+            <Col span={24}>
+              <Form.Item
+                name="app_id"
+                label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Liên kết Mini App</span>}
+                extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Nếu được liên kết, menu sẽ tự động thừa hưởng version, file path, hash và checksum từ Mini App đó.</span>}
+              >
+                <Select placeholder="Chọn Mini App để liên kết..." style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff' }} dropdownStyle={{ background: '#1e293b' }} allowClear>
+                  {miniApps.map(app => (
+                    <Select.Option key={app.id} value={app.app_id}>
+                      {app.name} ({app.app_id})
+                    </Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
           </Row>

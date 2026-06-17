@@ -37,6 +37,12 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
   const [submitting, setSubmitting] = useState(false);
   const [uploadingZip, setUploadingZip] = useState(false);
 
+  const [checklistModalOpen, setChecklistModalOpen] = useState(false);
+  const [reviewAction, setReviewAction] = useState(null); // 2: approve, 3: reject
+  const [reviewBuildRecord, setReviewBuildRecord] = useState(null);
+  const [checklistForm] = Form.useForm();
+  const [submittingReview, setSubmittingReview] = useState(false);
+
   const handleZipUpload = async (file, formInstance) => {
     const isZip = file.type === 'application/zip' || file.name.endsWith('.zip') || file.type === 'application/x-zip-compressed';
     if (!isZip) {
@@ -60,7 +66,13 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
     try {
       const res = await api.post('/mini-apps/upload', formData);
       const url = res.data?.url || res.url;
-      formInstance.setFieldsValue({ file_path: url });
+      const hash = res.data?.hash || '';
+      const checksum = res.data?.checksum || '';
+      formInstance.setFieldsValue({ 
+        file_path: url,
+        file_hash: hash,
+        file_checksum: checksum
+      });
       message.success('Tải lên tệp zip thành công!');
     } catch (err) {
       message.error('Tải lên thất bại: ' + err.message);
@@ -143,7 +155,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               privacy_policy_url: appData.privacy_policy_url || appData.privacyPolicyUrl,
               permissions: appData.permissions || [],
               file_path: appData.file_path || appData.filePath || '',
-              sub_apps: appData.sub_apps || appData.subApps || [],
+              file_hash: appData.file_hash || '',
+              file_checksum: appData.file_checksum || '',
               policy: appData.policy || { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
             });
 
@@ -196,7 +209,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             privacy_policy_url: app.privacy_policy_url || app.privacyPolicyUrl,
             permissions: app.permissions || [],
             file_path: app.file_path || app.filePath || '',
-            sub_apps: app.sub_apps || app.subApps || [],
+            file_hash: app.file_hash || '',
+            file_checksum: app.file_checksum || '',
             policy: app.policy || { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
           });
         }
@@ -209,7 +223,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           is_actived: true,
           permissions: [],
           file_path: '',
-          sub_apps: [],
+          file_hash: '',
+          file_checksum: '',
           policy: { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
         });
       }
@@ -247,7 +262,9 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         version: values.version,
         changelog: values.changelog,
         reviewer_notes: values.reviewer_notes,
-        file_path: values.file_path
+        file_path: values.file_path,
+        file_hash: values.file_hash || '',
+        file_checksum: values.file_checksum || ''
       });
       message.success('Đăng ký bản build mới thành công!');
       setIsBuildModalOpen(false);
@@ -260,10 +277,11 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
     }
   };
 
-  const handleUpdateBuildStatus = async (buildId, newStatus) => {
+  const handleUpdateBuildStatus = async (buildId, newStatus, checklist = null) => {
     try {
       await api.put(`/mini-apps/${id}/builds/${buildId}/status`, {
-        status: newStatus
+        status: newStatus,
+        checklist: checklist || { notes: "Khôi phục phiên bản (Rollback)" }
       });
       message.success(newStatus === 2 ? 'Đã duyệt bản build thành công!' : 'Đã từ chối bản build.');
 
@@ -284,6 +302,34 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       }
     } catch (err) {
       message.error(err.message || 'Cập nhật trạng thái bản build thất bại.');
+      throw err;
+    }
+  };
+
+  const handleChecklistSubmit = async (values) => {
+    if (!reviewBuildRecord) return;
+    const checklist = {
+      checks: {
+        legal_content: !!values.legal_content,
+        payment_iap: !!values.payment_iap,
+        min_permissions: !!values.min_permissions,
+        domain_https: !!values.domain_https,
+        privacy_policy: !!values.privacy_policy,
+        no_bridge_abuse: !!values.no_bridge_abuse,
+        stability_check: !!values.stability_check,
+      },
+      notes: values.notes || '',
+      reason: values.reason || ''
+    };
+    setSubmittingReview(true);
+    try {
+      await handleUpdateBuildStatus(reviewBuildRecord.id, reviewAction, checklist);
+      setChecklistModalOpen(false);
+      checklistForm.resetFields();
+    } catch (err) {
+      // Error message is already displayed by handleUpdateBuildStatus
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -355,28 +401,33 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           <Space>
             {isPending && canEdit && (
               <>
-                <Popconfirm
-                  title="Duyệt bản build này?"
-                  description="Phiên bản của Mini App sẽ được cập nhật thành phiên bản này."
-                  onConfirm={() => handleUpdateBuildStatus(record.id, 2)}
-                  okText="Duyệt"
-                  cancelText="Hủy"
+                <Button 
+                  type="primary" 
+                  size="small" 
+                  style={{ background: '#10b981', border: 'none', borderRadius: '4px' }}
+                  onClick={() => {
+                    setReviewAction(2);
+                    setReviewBuildRecord(record);
+                    checklistForm.resetFields();
+                    setChecklistModalOpen(true);
+                  }}
                 >
-                  <Button type="primary" size="small" style={{ background: '#10b981', border: 'none', borderRadius: '4px' }}>
-                    Duyệt
-                  </Button>
-                </Popconfirm>
-                <Popconfirm
-                  title="Từ chối bản build này?"
-                  onConfirm={() => handleUpdateBuildStatus(record.id, 3)}
-                  okText="Từ chối"
-                  cancelText="Hủy"
-                  okButtonProps={{ danger: true }}
+                  Duyệt
+                </Button>
+                <Button 
+                  danger 
+                  type="primary" 
+                  size="small" 
+                  style={{ borderRadius: '4px' }}
+                  onClick={() => {
+                    setReviewAction(3);
+                    setReviewBuildRecord(record);
+                    checklistForm.resetFields();
+                    setChecklistModalOpen(true);
+                  }}
                 >
-                  <Button danger type="primary" size="small" style={{ borderRadius: '4px' }}>
-                    Từ chối
-                  </Button>
-                </Popconfirm>
+                  Từ chối
+                </Button>
               </>
             )}
             {isApproved && (
@@ -513,11 +564,11 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         privacy_policy_url: editingApp.privacy_policy_url || editingApp.privacyPolicyUrl || '',
         permissions: editingApp.permissions || [],
         file_path: editingApp.file_path || editingApp.filePath || '',
-        sub_apps: editingApp.sub_apps || editingApp.subApps || [],
+        file_hash: editingApp.file_hash || '',
+        file_checksum: editingApp.file_checksum || '',
         policy: editingApp.policy || {},
         is_hidden: fieldName === 'is_hidden' ? newValue : (editingApp.is_hidden === true || editingApp.isHidden === true),
         is_actived: fieldName === 'is_actived' ? newValue : (editingApp.is_actived !== false && editingApp.isActived !== false),
-        is_maintenance: fieldName === 'is_maintenance' ? newValue : (editingApp.is_maintenance === true || editingApp.isMaintenance === true),
       };
 
       await api.put(`/mini-apps/${editingApp.id}`, payload);
@@ -527,8 +578,6 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         successMsg = newValue ? 'Đã ẩn Mini App khỏi Store!' : 'Đã hiển thị Mini App tại Store!';
       } else if (fieldName === 'is_actived') {
         successMsg = newValue ? 'Đã kích hoạt Mini App thành công!' : 'Đã tạm dừng hoạt động Mini App!';
-      } else if (fieldName === 'is_maintenance') {
-        successMsg = newValue ? 'Đã bật chế độ bảo trì cho Mini App!' : 'Đã tắt chế độ bảo trì, Mini App hoạt động bình thường!';
       }
 
       message.success(successMsg);
@@ -564,11 +613,12 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           requires_auth: appData.requires_auth === true || appData.requiresAuth === true,
           is_hidden: appData.is_hidden === true || appData.isHidden === true,
           is_actived: appData.is_actived !== false && appData.isActived !== false,
-          is_maintenance: appData.is_maintenance === true || appData.isMaintenance === true,
           terms_url: appData.terms_url || appData.termsUrl,
           privacy_policy_url: appData.privacy_policy_url || appData.privacyPolicyUrl,
           permissions: appData.permissions || [],
-          sub_apps: appData.sub_apps || appData.subApps || [],
+          file_path: appData.file_path || appData.filePath || '',
+          file_hash: appData.file_hash || '',
+          file_checksum: appData.file_checksum || '',
           policy: appData.policy || {},
         });
       }
@@ -594,12 +644,12 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         requires_auth: !!values.requires_auth,
         is_hidden: isWorkspaceView ? (editingApp.is_hidden === true || editingApp.isHidden === true) : !!values.is_hidden,
         is_actived: isWorkspaceView ? (editingApp.is_actived !== false && editingApp.isActived !== false) : !!values.is_actived,
-        is_maintenance: isWorkspaceView ? (editingApp.is_maintenance === true || editingApp.isMaintenance === true) : !!values.is_maintenance,
         terms_url: values.terms_url,
         privacy_policy_url: values.privacy_policy_url,
         permissions: values.permissions || [],
         file_path: values.file_path || '',
-        sub_apps: values.sub_apps || [],
+        file_hash: values.file_hash || '',
+        file_checksum: values.file_checksum || '',
         policy: values.policy || {},
       };
 
@@ -1164,6 +1214,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                     </Form.Item>
                   </Col>
                 </Row>
+                <Form.Item name="file_hash" noStyle><Input type="hidden" /></Form.Item>
+                <Form.Item name="file_checksum" noStyle><Input type="hidden" /></Form.Item>
 
                 <Row gutter={12}>
                   <Col span={24}>
@@ -1193,85 +1245,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   </Col>
                 </Row>
 
-                <Divider orientation="left" style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '24px 0 16px' }}>
-                  <span style={{ color: '#818cf8', fontSize: '13px', fontWeight: 600 }}>Cấu hình Phân hệ con (Sub Apps / Sub Routes)</span>
-                </Divider>
 
-                <Form.List name="sub_apps">
-                  {(fields, { add, remove }) => (
-                    <div style={{ marginBottom: '24px' }}>
-                      {fields.map(({ key, name, ...restField }) => (
-                        <Row key={key} gutter={12} align="middle" style={{ marginBottom: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                          <Col span={5}>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'sub_app_id']}
-                              rules={[{ required: true, message: 'Nhập mã sub-app!' }]}
-                              style={{ marginBottom: 0 }}
-                            >
-                              <Input placeholder="Mã (e.g. services)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                            </Form.Item>
-                          </Col>
-                          <Col span={6}>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'name']}
-                              rules={[{ required: true, message: 'Nhập tên hiển thị!' }]}
-                              style={{ marginBottom: 0 }}
-                            >
-                              <Input placeholder="Tên hiển thị (e.g. Dịch vụ)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                            </Form.Item>
-                          </Col>
-                          <Col span={6}>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'path']}
-                              rules={[{ required: true, message: 'Nhập đường dẫn!' }]}
-                              style={{ marginBottom: 0 }}
-                            >
-                              <Input placeholder="Path (e.g. #/services)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                            </Form.Item>
-                          </Col>
-                          <Col span={5} style={{ display: 'flex', justifyContent: 'center' }}>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'is_maintenance']}
-                              valuePropName="checked"
-                              style={{ marginBottom: 0 }}
-                            >
-                              <Switch checkedChildren="Bảo trì" unCheckedChildren="Hoạt động" />
-                            </Form.Item>
-                          </Col>
-                          <Col span={2} style={{ textAlign: 'center' }}>
-                            <Button
-                              type="text"
-                              danger
-                              icon={<DeleteOutlined />}
-                              onClick={() => remove(name)}
-                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                            />
-                          </Col>
-                        </Row>
-                      ))}
-                      <Form.Item style={{ marginBottom: 0 }}>
-                        <Button
-                          type="dashed"
-                          onClick={() => add()}
-                          block
-                          icon={<PlusOutlined />}
-                          style={{
-                            background: 'rgba(99, 102, 241, 0.05)',
-                            color: '#a5b4fc',
-                            borderColor: 'rgba(99, 102, 241, 0.3)',
-                            borderRadius: '4px'
-                          }}
-                        >
-                          Thêm phân hệ con (Sub App)
-                        </Button>
-                      </Form.Item>
-                    </div>
-                  )}
-                </Form.List>
 
                 <Row gutter={12} style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '5px', marginBottom: '24px' }}>
                   <Col span={24}>
@@ -1319,42 +1293,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   Vùng nguy hiểm
                 </h3>
 
-                {/* Row 0: Chế độ bảo trì Mini App */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingBottom: '16px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
-                }}>
-                  <div>
-                    <h4 style={{ color: '#f8fafc', margin: '0 0 4px 0', fontSize: '13px', fontWeight: 600 }}>
-                      {(editingApp?.is_maintenance === true || editingApp?.isMaintenance === true) ? 'Tắt bảo trì Mini App' : 'Bật bảo trì Mini App'}
-                    </h4>
-                    <span style={{ color: '#94a3b8', fontSize: '12px' }}>
-                      {(editingApp?.is_maintenance === true || editingApp?.isMaintenance === true)
-                        ? 'Mini App đang được bảo trì. Click để tắt chế độ bảo trì.'
-                        : 'Bật chế độ bảo trì cho toàn bộ Mini App (người dùng không thể truy cập).'}
-                    </span>
-                  </div>
-                  <Button
-                    onClick={() => handleToggleField('is_maintenance', (editingApp?.is_maintenance === true || editingApp?.isMaintenance === true))}
-                    disabled={!canEdit}
-                    style={{
-                      background: (editingApp?.is_maintenance === true || editingApp?.isMaintenance === true) ? '#10b981' : '#f59e0b',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '5px',
-                      fontWeight: 600,
-                      padding: '8px 18px',
-                      height: 'auto',
-                      fontSize: '12px',
-                      cursor: canEdit ? 'pointer' : 'not-allowed'
-                    }}
-                  >
-                    {(editingApp?.is_maintenance === true || editingApp?.isMaintenance === true) ? 'Tắt bảo trì' : 'Bật bảo trì'}
-                  </Button>
-                </div>
+
 
                 {/* Row 1: Ẩn/Hiện Mini App */}
                 <div style={{
@@ -1593,6 +1532,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                     </Form.Item>
                   </Col>
                 </Row>
+                <Form.Item name="file_hash" noStyle><Input type="hidden" /></Form.Item>
+                <Form.Item name="file_checksum" noStyle><Input type="hidden" /></Form.Item>
 
                 <Form.Item style={{ marginBottom: 0, marginTop: '24px', textAlign: 'right' }}>
                   <Space>
@@ -2035,6 +1976,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   </Form.Item>
                 </Col>
               </Row>
+              <Form.Item name="file_hash" noStyle><Input type="hidden" /></Form.Item>
+              <Form.Item name="file_checksum" noStyle><Input type="hidden" /></Form.Item>
 
               <Row gutter={12}>
                 <Col span={24}>
@@ -2109,88 +2052,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 </Col>
               </Row>
 
-              <Divider orientation="left" style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '24px 0 16px' }}>
-                <span style={{ color: '#818cf8', fontSize: '13px', fontWeight: 600 }}>Cấu hình Phân hệ con (Sub Apps / Sub Routes)</span>
-              </Divider>
-
-              <Form.List name="sub_apps">
-                {(fields, { add, remove }) => (
-                  <div style={{ marginBottom: '24px' }}>
-                    {fields.map(({ key, name, ...restField }) => (
-                      <Row key={key} gutter={12} align="middle" style={{ marginBottom: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <Col span={5}>
-                          <Form.Item
-                            {...restField}
-                            name={[name, 'sub_app_id']}
-                            rules={[{ required: true, message: 'Nhập mã sub-app!' }]}
-                            style={{ marginBottom: 0 }}
-                          >
-                            <Input placeholder="Mã (e.g. services)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={6}>
-                          <Form.Item
-                            {...restField}
-                            name={[name, 'name']}
-                            rules={[{ required: true, message: 'Nhập tên hiển thị!' }]}
-                            style={{ marginBottom: 0 }}
-                          >
-                            <Input placeholder="Tên hiển thị (e.g. Dịch vụ)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={6}>
-                          <Form.Item
-                            {...restField}
-                            name={[name, 'path']}
-                            rules={[{ required: true, message: 'Nhập đường dẫn!' }]}
-                            style={{ marginBottom: 0 }}
-                          >
-                            <Input placeholder="Path (e.g. #/services)" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={5} style={{ display: 'flex', justifyContent: 'center' }}>
-                          <Form.Item
-                            {...restField}
-                            name={[name, 'is_maintenance']}
-                            valuePropName="checked"
-                            style={{ marginBottom: 0 }}
-                          >
-                            <Switch checkedChildren="Bảo trì" unCheckedChildren="Hoạt động" />
-                          </Form.Item>
-                        </Col>
-                        <Col span={2} style={{ textAlign: 'center' }}>
-                          <Button
-                            type="text"
-                            danger
-                            icon={<DeleteOutlined />}
-                            onClick={() => remove(name)}
-                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                          />
-                        </Col>
-                      </Row>
-                    ))}
-                    <Form.Item style={{ marginBottom: 0 }}>
-                      <Button
-                        type="dashed"
-                        onClick={() => add()}
-                        block
-                        icon={<PlusOutlined />}
-                        style={{
-                          background: 'rgba(99, 102, 241, 0.05)',
-                          color: '#a5b4fc',
-                          borderColor: 'rgba(99, 102, 241, 0.3)',
-                          borderRadius: '4px'
-                        }}
-                      >
-                        Thêm phân hệ con (Sub App)
-                      </Button>
-                    </Form.Item>
-                  </div>
-                )}
-              </Form.List>
-
               <Row gutter={12} style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '5px', marginBottom: '24px' }}>
-                <Col span={6}>
+                <Col span={8}>
                   <Form.Item
                     name="requires_auth"
                     label={<span style={{ color: '#e2e8f0' }}>Yêu cầu Auth Login</span>}
@@ -2200,7 +2063,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                     <Switch />
                   </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col span={8}>
                   <Form.Item
                     name="is_hidden"
                     label={<span style={{ color: '#e2e8f0' }}>Ẩn khỏi Store</span>}
@@ -2210,20 +2073,10 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                     <Switch />
                   </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col span={8}>
                   <Form.Item
                     name="is_actived"
                     label={<span style={{ color: '#e2e8f0' }}>Kích hoạt Hoạt động</span>}
-                    valuePropName="checked"
-                    style={{ marginBottom: 0 }}
-                  >
-                    <Switch />
-                  </Form.Item>
-                </Col>
-                <Col span={6}>
-                  <Form.Item
-                    name="is_maintenance"
-                    label={<span style={{ color: '#e2e8f0' }}>Chế độ Bảo trì</span>}
                     valuePropName="checked"
                     style={{ marginBottom: 0 }}
                   >
@@ -2421,6 +2274,255 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           size="small"
         />
       </Drawer>
+
+      {/* Checklist & Moderation Modal */}
+      <Modal
+        title={
+          <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>
+            {reviewAction === 2 ? 'Checklist Kiểm Duyệt & Ký Duyệt Bản Build' : 'Từ Chối Bản Build & Nêu Lý Do'}
+          </span>
+        }
+        open={checklistModalOpen}
+        onCancel={() => {
+          if (!submittingReview) {
+            setChecklistModalOpen(false);
+            checklistForm.resetFields();
+          }
+        }}
+        footer={null}
+        destroyOnClose
+        wrapClassName="dark-modal"
+        width={560}
+      >
+        <div style={{ color: '#cbd5e1', marginBottom: '16px', fontSize: '13px' }}>
+          Bạn đang thực hiện đánh giá bản build <code style={{ color: '#eab308', fontWeight: 600 }}>v{reviewBuildRecord?.version}</code> của Mini App. 
+          Vui lòng tích kiểm tra các tiêu chí an toàn dưới đây theo quy trình **SOP §4** (App Store Guideline 4.7).
+        </div>
+
+        <Form
+          form={checklistForm}
+          layout="vertical"
+          onFinish={handleChecklistSubmit}
+          requiredMark={false}
+          initialValues={{
+            legal_content: false,
+            payment_iap: false,
+            min_permissions: false,
+            domain_https: false,
+            privacy_policy: false,
+            no_bridge_abuse: false,
+            stability_check: false,
+          }}
+        >
+          <div style={{ 
+            background: 'rgba(15, 23, 42, 0.4)', 
+            border: '1px solid rgba(255,255,255,0.06)', 
+            padding: '16px', 
+            borderRadius: '6px', 
+            marginBottom: '16px' 
+          }}>
+            <span style={{ color: '#818cf8', fontWeight: 600, display: 'block', marginBottom: '12px', fontSize: '13px' }}>
+              Quy Trình Kiểm Tra Bảo Mật (SOP §4)
+            </span>
+
+            <Form.Item
+              name="legal_content"
+              valuePropName="checked"
+              style={{ marginBottom: '8px' }}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (reviewAction === 2 && !value) {
+                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
+              <span style={{ color: '#e2e8f0' }}>Nội dung hợp pháp (không 18+, cờ bạc, lừa đảo...)</span>
+            </Form.Item>
+
+            <Form.Item
+              name="payment_iap"
+              valuePropName="checked"
+              style={{ marginBottom: '8px' }}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (reviewAction === 2 && !value) {
+                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
+              <span style={{ color: '#e2e8f0' }}>Thanh toán hợp lệ (không bán nội dung số qua thẻ ngoài, bắt IAP)</span>
+            </Form.Item>
+
+            <Form.Item
+              name="min_permissions"
+              valuePropName="checked"
+              style={{ marginBottom: '8px' }}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (reviewAction === 2 && !value) {
+                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
+              <span style={{ color: '#e2e8f0' }}>Quyền truy cập tối thiểu (không xin thừa quyền)</span>
+            </Form.Item>
+
+            <Form.Item
+              name="domain_https"
+              valuePropName="checked"
+              style={{ marginBottom: '8px' }}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (reviewAction === 2 && !value) {
+                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
+              <span style={{ color: '#e2e8f0' }}>Đường dẫn HTTPS an toàn (đã cấu hình allowed domains)</span>
+            </Form.Item>
+
+            <Form.Item
+              name="privacy_policy"
+              valuePropName="checked"
+              style={{ marginBottom: '8px' }}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (reviewAction === 2 && !value) {
+                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
+              <span style={{ color: '#e2e8f0' }}>Chính sách bảo mật (Privacy Policy rõ ràng)</span>
+            </Form.Item>
+
+            <Form.Item
+              name="no_bridge_abuse"
+              valuePropName="checked"
+              style={{ marginBottom: '8px' }}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (reviewAction === 2 && !value) {
+                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
+              <span style={{ color: '#e2e8f0' }}>Không lạm dụng Bridge (chỉ dùng các hàm được hỗ trợ)</span>
+            </Form.Item>
+
+            <Form.Item
+              name="stability_check"
+              valuePropName="checked"
+              style={{ marginBottom: 0 }}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (reviewAction === 2 && !value) {
+                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
+              <span style={{ color: '#e2e8f0' }}>Tính ổn định cao (tải nhanh, không trắng màn hình)</span>
+            </Form.Item>
+          </div>
+
+          {reviewAction === 2 ? (
+            <Form.Item
+              name="notes"
+              label={<span style={{ color: '#e2e8f0' }}>Ghi chú kiểm duyệt (Reviewer Notes - Tùy chọn)</span>}
+            >
+              <Input.TextArea
+                rows={3}
+                placeholder="Ghi nhận thông tin kiểm thử, khuyến nghị hoặc ghi chú nội bộ..."
+                style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+            </Form.Item>
+          ) : (
+            <Form.Item
+              name="reason"
+              label={<span style={{ color: '#fca5a5' }}>Lý do từ chối (Bắt buộc)</span>}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (reviewAction === 3 && (!value || !value.trim())) {
+                      return Promise.reject(new Error('Vui lòng nhập lý do từ chối bản build này!'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <Input.TextArea
+                rows={3}
+                placeholder="Nhập lý do từ chối (ví dụ: Thiếu chính sách bảo mật, giao dịch bị lỗi...)"
+                style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+              />
+            </Form.Item>
+          )}
+
+          <Form.Item style={{ marginBottom: 0, marginTop: '20px', textAlign: 'right' }}>
+            <Space>
+              <Button 
+                onClick={() => {
+                  setChecklistModalOpen(false);
+                  checklistForm.resetFields();
+                }} 
+                style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}
+                disabled={submittingReview}
+              >
+                Hủy bỏ
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submittingReview}
+                style={{ 
+                  background: reviewAction === 2 
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                    : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', 
+                  border: 'none',
+                  fontWeight: 600
+                }}
+              >
+                {reviewAction === 2 ? 'Ký Duyệt & Phát Hành' : 'Xác Nhận Từ Chối'}
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

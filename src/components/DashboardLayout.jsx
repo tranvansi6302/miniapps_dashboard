@@ -10,7 +10,8 @@ import {
   ArrowLeftOutlined,
   CopyOutlined,
   DashboardOutlined,
-  MenuOutlined
+  MenuOutlined,
+  SafetyOutlined
 } from '@ant-design/icons';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { clearAuthData, api } from '../services/api';
@@ -53,6 +54,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
     'scripts': <BranchesOutlined />,
     'app-menus': <MenuOutlined />,
     'account-menus': <UserOutlined />,
+    'moderation-logs': <SafetyOutlined />,
   };
 
 
@@ -87,6 +89,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
     if (path.startsWith('/scripts')) return 'scripts';
     if (path.startsWith('/app-menus')) return 'app-menus';
     if (path.startsWith('/account-menus')) return 'account-menus';
+    if (path.startsWith('/moderation-logs')) return 'moderation-logs';
     return 'dashboard';
   };
 

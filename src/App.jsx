@@ -12,6 +12,7 @@ import ScriptTab from './components/ScriptTab';
 import DashboardTab from './components/DashboardTab';
 import AppMenuTab from './components/AppMenuTab';
 import AccountMenuTab from './components/AccountMenuTab';
+import ModerationLogTab from './components/ModerationLogTab';
 
 
 function PermissionGuard({ currentUser, menuKey, children }) {
@@ -157,6 +158,8 @@ export default function App() {
             <Route path="app-menus/:id/edit" element={<PermissionGuard currentUser={currentUser} menuKey="app-menus"><AppMenuTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />
 
             <Route path="account-menus" element={<PermissionGuard currentUser={currentUser} menuKey="account-menus"><AccountMenuTab currentUser={currentUser} /></PermissionGuard>} />
+
+            <Route path="moderation-logs" element={<PermissionGuard currentUser={currentUser} menuKey="mini-apps"><ModerationLogTab /></PermissionGuard>} />
 
             <Route path="users" element={<PermissionGuard currentUser={currentUser} menuKey="users"><UserTab currentUser={currentUser} /></PermissionGuard>} />
             
