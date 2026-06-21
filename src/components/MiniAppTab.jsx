@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Card, Badge, Tooltip, Select, Switch, Row, Col, Drawer, Divider, message, Popconfirm, Tag, Collapse, Upload, Dropdown } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, ReloadOutlined, SearchOutlined, CheckCircleOutlined, StopOutlined, UserAddOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, MoreOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, ReloadOutlined, SearchOutlined, CheckCircleOutlined, StopOutlined, UserAddOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, MoreOutlined, CheckOutlined, CloseOutlined, ClockCircleOutlined, SafetyCertificateOutlined, FileZipOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useNavigate, useParams, useLocation, useOutletContext } from 'react-router-dom';
 import { api } from '../services/api';
 
 const { Option } = Select;
+
+// Wrapper để Form.Item bind đúng checked/onChange vào Switch khi render label inline
+const ChecklistSwitch = ({ checked, onChange, children }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+    <Switch
+      checked={checked}
+      onChange={onChange}
+      checkedChildren="Đạt"
+      unCheckedChildren="Chưa đạt"
+    />
+    <span style={{ color: '#e2e8f0', fontSize: '12px' }}>{children}</span>
+  </span>
+);
 
 export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView }) {
   const PERMISSIONS_LIST = [
@@ -42,6 +55,29 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
   const [reviewBuildRecord, setReviewBuildRecord] = useState(null);
   const [checklistForm] = Form.useForm();
   const [submittingReview, setSubmittingReview] = useState(false);
+
+  const [isBuildDetailView, setIsBuildDetailView] = useState(false);
+  const [selectedBuild, setSelectedBuild] = useState(null);
+  const [buildLog, setBuildLog] = useState(null);
+  const [loadingBuildLog, setLoadingBuildLog] = useState(false);
+
+  const handleOpenBuildDetail = async (record) => {
+    setSelectedBuild(record);
+    setBuildLog(null);
+    setIsBuildDetailView(true);
+    if (record.status === 2 || record.status === 3) {
+      setLoadingBuildLog(true);
+      try {
+        const res = await api.get(`/moderation-logs?build_id=${record.id}`);
+        const logs = res?.data?.logs || res?.logs || [];
+        if (logs.length > 0) setBuildLog(logs[0]);
+      } catch (err) {
+        console.error('Không thể tải log kiểm duyệt:', err);
+      } finally {
+        setLoadingBuildLog(false);
+      }
+    }
+  };
 
   const handleZipUpload = async (file, formInstance) => {
     const isZip = file.type === 'application/zip' || file.name.endsWith('.zip') || file.type === 'application/x-zip-compressed';
@@ -333,21 +369,31 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
     }
   };
 
+  const CHECKLIST_LABELS = {
+    legal_content: 'Nội dung hợp pháp — không 18+, cờ bạc, lừa đảo, bạo lực, vi phạm bản quyền',
+    payment_iap: 'Thanh toán — chỉ dịch vụ/hàng vật lý; số/xu/premium → bắt buộc IAP',
+    min_permissions: 'Quyền tối thiểu — xin đúng nhu cầu thật, không xin thừa',
+    domain_https: 'Domain & HTTPS — host trong allowedDomains, toàn bộ request là HTTPS',
+    privacy_policy: 'Privacy — có privacy policy nếu thu thập dữ liệu cá nhân',
+    no_bridge_abuse: 'Không lạm dụng Bridge — không mở rộng native ngoài method được cấp',
+    stability_check: 'Ổn định — tải được, không trang trắng/"đang phát triển"',
+  };
+
   const buildColumns = [
     {
       title: 'Phiên bản (Version)',
       dataIndex: 'version',
       key: 'version',
-      fontWeight: 'bold',
-      render: (text) => <code style={{ color: '#eab308', fontWeight: 600 }}>v{text}</code>,
+      render: (text, record) => (
+        <span
+          style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          onClick={() => handleOpenBuildDetail(record)}
+        >
+          <code style={{ color: '#eab308', fontWeight: 600 }}>v{text}</code>
+        </span>
+      ),
     },
-    {
-      title: 'Nội dung phát hành (Changelog)',
-      dataIndex: 'changelog',
-      key: 'changelog',
-      ellipsis: true,
-      render: (text) => <span style={{ color: '#cbd5e1' }}>{text || '—'}</span>,
-    },
+
     {
       title: 'Gói ZIP',
       dataIndex: 'file_path',
@@ -398,37 +444,45 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         const isApproved = record.status === 2;
         const isActive = record.version === editingApp?.version;
         return (
-          <Space>
+          <Space size="middle">
+            <Button 
+              type="link" 
+              size="small" 
+              onClick={() => handleOpenBuildDetail(record)}
+              style={{ padding: 0, color: '#38bdf8' }}
+            >
+              Xem chi tiết
+            </Button>
             {isPending && canEdit && (
-              <>
-                <Button 
-                  type="primary" 
-                  size="small" 
-                  style={{ background: '#10b981', border: 'none', borderRadius: '4px' }}
-                  onClick={() => {
-                    setReviewAction(2);
-                    setReviewBuildRecord(record);
-                    checklistForm.resetFields();
-                    setChecklistModalOpen(true);
-                  }}
-                >
-                  Duyệt
-                </Button>
-                <Button 
-                  danger 
-                  type="primary" 
-                  size="small" 
-                  style={{ borderRadius: '4px' }}
-                  onClick={() => {
-                    setReviewAction(3);
-                    setReviewBuildRecord(record);
-                    checklistForm.resetFields();
-                    setChecklistModalOpen(true);
-                  }}
-                >
-                  Từ chối
-                </Button>
-              </>
+              <Button 
+                type="primary" 
+                size="small" 
+                style={{ background: '#10b981', border: 'none', borderRadius: '4px' }}
+                onClick={() => {
+                  setReviewAction(2);
+                  setReviewBuildRecord(record);
+                  checklistForm.resetFields();
+                  setChecklistModalOpen(true);
+                }}
+              >
+                Duyệt
+              </Button>
+            )}
+            {isPending && canEdit && (
+              <Button 
+                danger 
+                type="primary" 
+                size="small" 
+                style={{ borderRadius: '4px' }}
+                onClick={() => {
+                  setReviewAction(3);
+                  setReviewBuildRecord(record);
+                  checklistForm.resetFields();
+                  setChecklistModalOpen(true);
+                }}
+              >
+                Từ chối
+              </Button>
             )}
             {isApproved && (
               isActive ? (
@@ -457,6 +511,236 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       },
     },
   ];
+
+  // Build Detail Full-Page View
+  const renderBuildDetailPage = () => {
+    const b = selectedBuild;
+    const log = buildLog;
+    const isApproved = b?.status === 2;
+    const isRejected = b?.status === 3;
+    const statusColor = isApproved ? '#4ade80' : isRejected ? '#f87171' : '#38bdf8';
+    const statusBg = isApproved ? 'rgba(74,222,128,0.1)' : isRejected ? 'rgba(248,113,113,0.1)' : 'rgba(56,189,248,0.1)';
+    const statusBorder = isApproved ? 'rgba(74,222,128,0.25)' : isRejected ? 'rgba(248,113,113,0.25)' : 'rgba(56,189,248,0.25)';
+    const statusIcon = isApproved ? <CheckOutlined /> : isRejected ? <CloseOutlined /> : <ClockCircleOutlined />;
+    const statusText = isApproved ? 'Đã duyệt' : isRejected ? 'Từ chối' : 'Chờ duyệt';
+
+    return (
+      <Card
+        title={
+          <Space size="middle">
+            <Button
+              type="text"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => setIsBuildDetailView(false)}
+              style={{ color: '#fff', fontSize: '18px', marginRight: '4px' }}
+            />
+            <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>
+              Chi tiết phiên bản v{b?.version}
+            </span>
+            <span style={{ padding: '2px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, background: statusBg, border: `1px solid ${statusBorder}`, color: statusColor, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              {statusIcon} {statusText}
+            </span>
+          </Space>
+        }
+        extra={b?.file_path && (
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={() => window.open(b.file_path, '_blank')}
+            style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a', fontWeight: 600 }}
+          >
+            Tải gói ZIP
+          </Button>
+        )}
+        bordered={false}
+        style={{
+          background: 'rgba(30, 41, 59, 0.65)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '5px',
+          boxShadow: '0 20px 45px -15px rgba(0, 0, 0, 0.5)',
+        }}
+        styles={{
+          body: {
+            padding: '24px',
+          }
+        }}
+      >
+        <Row gutter={[24, 24]}>
+          {/* === LEFT COLUMN === */}
+          <Col xs={24} lg={14}>
+            {/* Version Information Detail Block */}
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              borderRadius: '6px',
+              padding: '20px',
+              marginBottom: '20px'
+            }}>
+              <div style={{ color: '#818cf8', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <InfoCircleOutlined /> <span>Thông tin phiên bản</span>
+              </div>
+              <Row gutter={[16, 16]}>
+                <Col span={12}>
+                  <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px' }}>Mã phiên bản</div>
+                  <code style={{ color: '#eab308', fontWeight: 700, fontSize: '18px' }}>v{b?.version}</code>
+                </Col>
+                <Col span={12}>
+                  <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px' }}>Thời gian tải lên</div>
+                  <span style={{ color: '#cbd5e1', fontSize: '13px' }}>{new Date(b?.created_at).toLocaleString('vi-VN')}</span>
+                </Col>
+
+                {b?.reviewer_notes && (
+                  <Col span={24}>
+                    <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', marginBottom: '6px' }}>Ghi chú cho người kiểm duyệt</div>
+                    <div style={{
+                      color: '#94a3b8', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: '13px',
+                      background: 'rgba(0, 0, 0, 0.15)', padding: '12px', borderRadius: '6px',
+                      border: '1px solid rgba(255,255,255,0.04)'
+                    }}>
+                      {b.reviewer_notes}
+                    </div>
+                  </Col>
+                )}
+              </Row>
+            </div>
+
+            {/* Offline Bundle Zip Package Block */}
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              borderRadius: '6px',
+              padding: '20px'
+            }}>
+              <div style={{ color: '#818cf8', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <FileZipOutlined /> <span>Thông tin tệp ZIP offline</span>
+              </div>
+              <Row gutter={[16, 12]}>
+                <Col span={24}>
+                  <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px' }}>Đường dẫn lưu trữ</div>
+                  {b?.file_path ? (
+                    <a href={b.file_path} target="_blank" rel="noreferrer"
+                      style={{ color: '#a5b4fc', wordBreak: 'break-all', fontSize: '12px', lineHeight: 1.5 }}>
+                      {b.file_path}
+                    </a>
+                  ) : <span style={{ color: '#64748b', fontStyle: 'italic', fontSize: '13px' }}>Chưa đính kèm tệp tin ZIP</span>}
+                </Col>
+                {b?.file_hash && (
+                  <Col span={24}>
+                    <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px' }}>Băm bảo mật SHA-256</div>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.15)', borderRadius: '6px', padding: '8px 12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <code style={{ color: '#7dd3fc', fontSize: '11px', wordBreak: 'break-all', lineHeight: 1.5 }}>{b.file_hash}</code>
+                    </div>
+                  </Col>
+                )}
+                {b?.file_checksum && (
+                  <Col span={24}>
+                    <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px' }}>Tổng kiểm tra MD5</div>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.15)', borderRadius: '6px', padding: '8px 12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <code style={{ color: '#7dd3fc', fontSize: '11px', wordBreak: 'break-all', lineHeight: 1.5 }}>{b.file_checksum}</code>
+                    </div>
+                  </Col>
+                )}
+              </Row>
+            </div>
+          </Col>
+
+          {/* === RIGHT COLUMN: Moderation Log === */}
+          <Col xs={24} lg={10}>
+            <div style={{
+              background: isApproved ? 'rgba(16,185,129,0.02)' : isRejected ? 'rgba(239,68,68,0.02)' : 'rgba(56,189,248,0.02)',
+              border: `1px solid ${statusBorder}`,
+              borderRadius: '6px',
+              padding: '20px',
+              height: '100%',
+              minHeight: '300px'
+            }}>
+              <div style={{ color: '#818cf8', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <SafetyCertificateOutlined /> <span>Kết quả kiểm duyệt</span>
+              </div>
+
+              {b?.status === 1 ? (
+                <div style={{ color: '#64748b', fontSize: '13px', fontStyle: 'italic', textAlign: 'center', paddingTop: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <ClockCircleOutlined /> <span>Chưa có kết quả — phiên bản đang chờ duyệt</span>
+                </div>
+              ) : loadingBuildLog ? (
+                <div style={{ color: '#64748b', fontSize: '13px', textAlign: 'center', paddingTop: '60px' }}>
+                  <ReloadOutlined spin style={{ marginRight: '8px' }} />Đang tải kết quả...
+                </div>
+              ) : log ? (
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                  {/* Reviewer info */}
+                  <Row gutter={12}>
+                    <Col span={12}>
+                      <div style={{ background: 'rgba(0, 0, 0, 0.15)', borderRadius: '6px', padding: '10px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <div style={{ color: '#64748b', fontSize: '10px', textTransform: 'uppercase', marginBottom: '4px' }}>Kiểm duyệt bởi</div>
+                        <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: '13px' }}>@{log.performed_by}</span>
+                      </div>
+                    </Col>
+                    <Col span={12}>
+                      <div style={{ background: 'rgba(0, 0, 0, 0.15)', borderRadius: '6px', padding: '10px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <div style={{ color: '#64748b', fontSize: '10px', textTransform: 'uppercase', marginBottom: '4px' }}>Thời gian duyệt</div>
+                        <span style={{ color: '#cbd5e1', fontSize: '12px' }}>{new Date(log.created_at).toLocaleString('vi-VN')}</span>
+                      </div>
+                    </Col>
+                  </Row>
+
+                  {/* Checklist items */}
+                  {log.checklist?.checks && (
+                    <div>
+                      <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                        Checklist kiểm tra (App Store Guideline 4.7)
+                      </div>
+                      <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                        {Object.keys(CHECKLIST_LABELS).map(k => {
+                          const passed = log.checklist.checks[k];
+                          return (
+                            <div key={k} style={{
+                              display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '8px 10px',
+                              background: passed ? 'rgba(74,222,128,0.04)' : 'rgba(248,113,113,0.04)',
+                              borderRadius: '6px',
+                              border: `1px solid ${passed ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)'}`,
+                            }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '18px', flexShrink: 0 }}>
+                                {passed ? <CheckOutlined style={{ color: '#4ade80' }} /> : <CloseOutlined style={{ color: '#f87171' }} />}
+                              </span>
+                              <span style={{ fontSize: '12px', color: passed ? '#86efac' : '#fca5a5', lineHeight: 1.4 }}>
+                                {CHECKLIST_LABELS[k] || k}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </Space>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {log.checklist?.notes && (
+                    <div style={{ padding: '12px', background: 'rgba(0, 0, 0, 0.15)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ color: '#64748b', fontSize: '10px', textTransform: 'uppercase', marginBottom: '6px' }}>Ghi chú kiểm duyệt</div>
+                      <p style={{ margin: 0, color: '#94a3b8', whiteSpace: 'pre-wrap', lineHeight: 1.5, fontSize: '12px' }}>{log.checklist.notes}</p>
+                    </div>
+                  )}
+
+                  {/* Rejection reason */}
+                  {log.checklist?.reason && (
+                    <div style={{ padding: '12px', background: 'rgba(239,68,68,0.04)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.15)' }}>
+                      <div style={{ color: '#f87171', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Lý do từ chối</div>
+                      <p style={{ margin: 0, color: '#fca5a5', whiteSpace: 'pre-wrap', lineHeight: 1.5, fontSize: '12px' }}>{log.checklist.reason}</p>
+                    </div>
+                  )}
+                </Space>
+              ) : (
+                <div style={{ color: '#64748b', fontStyle: 'italic', fontSize: '13px', textAlign: 'center', paddingTop: '40px' }}>
+                  Không tìm thấy kết quả kiểm duyệt lịch sử.
+                </div>
+              )}
+            </div>
+          </Col>
+        </Row>
+      </Card>
+    );
+  };
 
   const fetchCategories = async () => {
     try {
@@ -1025,6 +1309,9 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
 
   // RENDER DEDICATED WORKSPACE PORTAL VIEW
   if (isWorkspaceView) {
+    if (isBuildDetailView) {
+      return renderBuildDetailPage();
+    }
     if (loading && !workspaceApp) {
       return (
         <Card
@@ -1719,6 +2006,209 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             />
           </Card>
         )}
+
+        {/* Checklist & Moderation Modal */}
+        <Modal
+          title={
+            <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>
+              {reviewAction === 2 ? 'Checklist Kiểm Duyệt & Ký Duyệt Bản Build' : 'Từ Chối Bản Build & Nêu Lý Do'}
+            </span>
+          }
+          open={checklistModalOpen}
+          onCancel={() => {
+            if (!submittingReview) {
+              setChecklistModalOpen(false);
+              checklistForm.resetFields();
+            }
+          }}
+          footer={null}
+          destroyOnClose
+          wrapClassName="dark-modal"
+          width={560}
+        >
+          <div style={{ color: '#cbd5e1', marginBottom: '16px', fontSize: '13px' }}>
+            Bạn đang thực hiện đánh giá bản build <code style={{ color: '#eab308', fontWeight: 600 }}>v{reviewBuildRecord?.version}</code> của Mini App. 
+            Vui lòng tích kiểm tra các tiêu chí an toàn dưới đây (App Store Guideline 4.7).
+          </div>
+
+          <Form
+            form={checklistForm}
+            layout="vertical"
+            onFinish={handleChecklistSubmit}
+            requiredMark={false}
+            initialValues={{
+              legal_content: false,
+              payment_iap: false,
+              min_permissions: false,
+              domain_https: false,
+              privacy_policy: false,
+              no_bridge_abuse: false,
+              stability_check: false,
+            }}
+          >
+            <div style={{ 
+              background: 'rgba(15, 23, 42, 0.4)', 
+              border: '1px solid rgba(255,255,255,0.06)', 
+              padding: '16px', 
+              borderRadius: '6px', 
+              marginBottom: '16px' 
+            }}>
+              <span style={{ color: '#818cf8', fontWeight: 600, display: 'block', marginBottom: '12px', fontSize: '13px' }}>
+                Quy Trình Kiểm Tra Bảo Mật
+              </span>
+
+              <Row gutter={[16, 8]}>
+                <Col span={12}>
+                  <Form.Item
+                    name="legal_content"
+                    valuePropName="checked"
+                    validateTrigger="onChange"
+                    style={{ marginBottom: '8px' }}
+                    rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                  >
+                    <ChecklistSwitch>Nội dung hợp pháp</ChecklistSwitch>
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="privacy_policy"
+                    valuePropName="checked"
+                    validateTrigger="onChange"
+                    style={{ marginBottom: '8px' }}
+                    rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                  >
+                    <ChecklistSwitch>Chính sách bảo mật</ChecklistSwitch>
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="payment_iap"
+                    valuePropName="checked"
+                    validateTrigger="onChange"
+                    style={{ marginBottom: '8px' }}
+                    rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                  >
+                    <ChecklistSwitch>Thanh toán hợp lệ</ChecklistSwitch>
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="no_bridge_abuse"
+                    valuePropName="checked"
+                    validateTrigger="onChange"
+                    style={{ marginBottom: '8px' }}
+                    rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                  >
+                    <ChecklistSwitch>Không lạm dụng Bridge</ChecklistSwitch>
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="min_permissions"
+                    valuePropName="checked"
+                    validateTrigger="onChange"
+                    style={{ marginBottom: '8px' }}
+                    rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                  >
+                    <ChecklistSwitch>Quyền tối thiểu</ChecklistSwitch>
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="stability_check"
+                    valuePropName="checked"
+                    validateTrigger="onChange"
+                    style={{ marginBottom: '8px' }}
+                    rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                  >
+                    <ChecklistSwitch>Tính ổn định cao</ChecklistSwitch>
+                  </Form.Item>
+                </Col>
+
+                <Col span={12}>
+                  <Form.Item
+                    name="domain_https"
+                    valuePropName="checked"
+                    validateTrigger="onChange"
+                    style={{ marginBottom: 0 }}
+                    rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                  >
+                    <ChecklistSwitch>HTTPS an toàn</ChecklistSwitch>
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
+
+            {reviewAction === 2 ? (
+              <Form.Item
+                name="notes"
+                label={<span style={{ color: '#e2e8f0' }}>Ghi chú kiểm duyệt (Reviewer Notes - Tùy chọn)</span>}
+              >
+                <Input.TextArea
+                  rows={3}
+                  placeholder="Ghi nhận thông tin kiểm thử, khuyến nghị hoặc ghi chú nội bộ..."
+                  style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                />
+              </Form.Item>
+            ) : (
+              <Form.Item
+                name="reason"
+                label={<span style={{ color: '#fca5a5' }}>Lý do từ chối (Bắt buộc)</span>}
+                rules={[
+                  {
+                    validator: (_, value) => {
+                      if (reviewAction === 3 && (!value || !value.trim())) {
+                        return Promise.reject(new Error('Vui lòng nhập lý do từ chối bản build này!'));
+                      }
+                      return Promise.resolve();
+                    }
+                  }
+                ]}
+              >
+                <Input.TextArea
+                  rows={3}
+                  placeholder="Nhập lý do từ chối (ví dụ: Thiếu chính sách bảo mật, giao dịch bị lỗi...)"
+                  style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                />
+              </Form.Item>
+            )}
+
+            <Form.Item style={{ marginBottom: 0, marginTop: '20px', textAlign: 'right' }}>
+              <Space>
+                <Button 
+                  onClick={() => {
+                    setChecklistModalOpen(false);
+                    checklistForm.resetFields();
+                  }} 
+                  style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}
+                  disabled={submittingReview}
+                >
+                  Hủy bỏ
+                </Button>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={submittingReview}
+                  style={{ 
+                    background: reviewAction === 2 
+                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                      : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', 
+                    border: 'none',
+                    fontWeight: 600
+                  }}
+                >
+                  {reviewAction === 2 ? 'Ký Duyệt & Phát Hành' : 'Xác Nhận Từ Chối'}
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+        {null}
       </div>
     );
   }
@@ -2296,7 +2786,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       >
         <div style={{ color: '#cbd5e1', marginBottom: '16px', fontSize: '13px' }}>
           Bạn đang thực hiện đánh giá bản build <code style={{ color: '#eab308', fontWeight: 600 }}>v{reviewBuildRecord?.version}</code> của Mini App. 
-          Vui lòng tích kiểm tra các tiêu chí an toàn dưới đây theo quy trình **SOP §4** (App Store Guideline 4.7).
+          Vui lòng tích kiểm tra các tiêu chí an toàn dưới đây (App Store Guideline 4.7).
         </div>
 
         <Form
@@ -2322,141 +2812,94 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             marginBottom: '16px' 
           }}>
             <span style={{ color: '#818cf8', fontWeight: 600, display: 'block', marginBottom: '12px', fontSize: '13px' }}>
-              Quy Trình Kiểm Tra Bảo Mật (SOP §4)
+              Quy Trình Kiểm Tra Bảo Mật
             </span>
 
-            <Form.Item
-              name="legal_content"
-              valuePropName="checked"
-              style={{ marginBottom: '8px' }}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (reviewAction === 2 && !value) {
-                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
-                    }
-                    return Promise.resolve();
-                  }
-                }
-              ]}
-            >
-              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
-              <span style={{ color: '#e2e8f0' }}>Nội dung hợp pháp (không 18+, cờ bạc, lừa đảo...)</span>
-            </Form.Item>
+            <Row gutter={[16, 8]}>
+              <Col span={12}>
+                <Form.Item
+                  name="legal_content"
+                  valuePropName="checked"
+                  validateTrigger="onChange"
+                  style={{ marginBottom: '8px' }}
+                  rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                >
+                  <ChecklistSwitch>Nội dung hợp pháp</ChecklistSwitch>
+                </Form.Item>
+              </Col>
 
-            <Form.Item
-              name="payment_iap"
-              valuePropName="checked"
-              style={{ marginBottom: '8px' }}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (reviewAction === 2 && !value) {
-                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
-                    }
-                    return Promise.resolve();
-                  }
-                }
-              ]}
-            >
-              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
-              <span style={{ color: '#e2e8f0' }}>Thanh toán hợp lệ (không bán nội dung số qua thẻ ngoài, bắt IAP)</span>
-            </Form.Item>
+              <Col span={12}>
+                <Form.Item
+                  name="privacy_policy"
+                  valuePropName="checked"
+                  validateTrigger="onChange"
+                  style={{ marginBottom: '8px' }}
+                  rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                >
+                  <ChecklistSwitch>Chính sách bảo mật</ChecklistSwitch>
+                </Form.Item>
+              </Col>
 
-            <Form.Item
-              name="min_permissions"
-              valuePropName="checked"
-              style={{ marginBottom: '8px' }}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (reviewAction === 2 && !value) {
-                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
-                    }
-                    return Promise.resolve();
-                  }
-                }
-              ]}
-            >
-              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
-              <span style={{ color: '#e2e8f0' }}>Quyền truy cập tối thiểu (không xin thừa quyền)</span>
-            </Form.Item>
+              <Col span={12}>
+                <Form.Item
+                  name="payment_iap"
+                  valuePropName="checked"
+                  validateTrigger="onChange"
+                  style={{ marginBottom: '8px' }}
+                  rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                >
+                  <ChecklistSwitch>Thanh toán hợp lệ</ChecklistSwitch>
+                </Form.Item>
+              </Col>
 
-            <Form.Item
-              name="domain_https"
-              valuePropName="checked"
-              style={{ marginBottom: '8px' }}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (reviewAction === 2 && !value) {
-                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
-                    }
-                    return Promise.resolve();
-                  }
-                }
-              ]}
-            >
-              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
-              <span style={{ color: '#e2e8f0' }}>Đường dẫn HTTPS an toàn (đã cấu hình allowed domains)</span>
-            </Form.Item>
+              <Col span={12}>
+                <Form.Item
+                  name="no_bridge_abuse"
+                  valuePropName="checked"
+                  validateTrigger="onChange"
+                  style={{ marginBottom: '8px' }}
+                  rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                >
+                  <ChecklistSwitch>Không lạm dụng Bridge</ChecklistSwitch>
+                </Form.Item>
+              </Col>
 
-            <Form.Item
-              name="privacy_policy"
-              valuePropName="checked"
-              style={{ marginBottom: '8px' }}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (reviewAction === 2 && !value) {
-                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
-                    }
-                    return Promise.resolve();
-                  }
-                }
-              ]}
-            >
-              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
-              <span style={{ color: '#e2e8f0' }}>Chính sách bảo mật (Privacy Policy rõ ràng)</span>
-            </Form.Item>
+              <Col span={12}>
+                <Form.Item
+                  name="min_permissions"
+                  valuePropName="checked"
+                  validateTrigger="onChange"
+                  style={{ marginBottom: '8px' }}
+                  rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                >
+                  <ChecklistSwitch>Quyền tối thiểu</ChecklistSwitch>
+                </Form.Item>
+              </Col>
 
-            <Form.Item
-              name="no_bridge_abuse"
-              valuePropName="checked"
-              style={{ marginBottom: '8px' }}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (reviewAction === 2 && !value) {
-                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
-                    }
-                    return Promise.resolve();
-                  }
-                }
-              ]}
-            >
-              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
-              <span style={{ color: '#e2e8f0' }}>Không lạm dụng Bridge (chỉ dùng các hàm được hỗ trợ)</span>
-            </Form.Item>
+              <Col span={12}>
+                <Form.Item
+                  name="stability_check"
+                  valuePropName="checked"
+                  validateTrigger="onChange"
+                  style={{ marginBottom: '8px' }}
+                  rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                >
+                  <ChecklistSwitch>Tính ổn định cao</ChecklistSwitch>
+                </Form.Item>
+              </Col>
 
-            <Form.Item
-              name="stability_check"
-              valuePropName="checked"
-              style={{ marginBottom: 0 }}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (reviewAction === 2 && !value) {
-                      return Promise.reject(new Error('Yêu cầu bắt buộc để duyệt bản build!'));
-                    }
-                    return Promise.resolve();
-                  }
-                }
-              ]}
-            >
-              <Switch checkedChildren="Đạt" unCheckedChildren="Chưa kiểm tra" style={{ marginRight: '8px' }} />
-              <span style={{ color: '#e2e8f0' }}>Tính ổn định cao (tải nhanh, không trắng màn hình)</span>
-            </Form.Item>
+              <Col span={12}>
+                <Form.Item
+                  name="domain_https"
+                  valuePropName="checked"
+                  validateTrigger="onChange"
+                  style={{ marginBottom: 0 }}
+                  rules={[{ validator: (_, value) => reviewAction === 2 && !value ? Promise.reject(new Error('Bắt buộc!')) : Promise.resolve() }]}
+                >
+                  <ChecklistSwitch>HTTPS an toàn</ChecklistSwitch>
+                </Form.Item>
+              </Col>
+            </Row>
           </div>
 
           {reviewAction === 2 ? (
@@ -2523,6 +2966,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           </Form.Item>
         </Form>
       </Modal>
+      {null}
     </div>
   );
 }

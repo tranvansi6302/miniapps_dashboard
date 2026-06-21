@@ -296,47 +296,86 @@ export default function ModerationLogTab() {
             Đóng
           </Button>
         ]}
-        width={560}
+        width={720}
         wrapClassName="dark-modal"
       >
         {selectedLog && (
           <div style={{ color: '#cbd5e1', fontSize: '13px' }}>
-            <p><strong>Người duyệt:</strong> {selectedLog.performed_by}</p>
-            <p><strong>Thời gian:</strong> {new Date(selectedLog.created_at).toLocaleString('vi-VN')}</p>
-            <p><strong>Phiên bản:</strong> <code style={{ color: '#eab308' }}>v{selectedLog.version || '—'}</code></p>
-            <p><strong>Hành động:</strong> {ACTION_LABELS[selectedLog.action]?.text || selectedLog.action}</p>
-            
-            <div style={{ marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
-              <h4 style={{ color: '#818cf8', marginBottom: '12px' }}>Checklist kiểm tra tiêu chí an toàn (SOP §4):</h4>
-              {selectedLog.checklist && selectedLog.checklist.checks ? (
-                <ul style={{ paddingLeft: '20px', listStyleType: 'none' }}>
-                  {Object.keys(selectedLog.checklist.checks).map(k => (
-                    <li key={k} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Badge status={selectedLog.checklist.checks[k] ? 'success' : 'error'} />
-                      <span style={{ textDecoration: selectedLog.checklist.checks[k] ? 'none' : 'line-through', color: selectedLog.checklist.checks[k] ? '#f8fafc' : '#64748b' }}>
-                        {CHECKLIST_LABELS[k] || k}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p style={{ color: '#64748b', fontStyle: 'italic' }}>Không có checklist đánh giá (Thao tác thay đổi cờ cấu hình/bảo trì).</p>
-              )}
-            </div>
+            <Row gutter={24}>
+              {/* Left Column: Thông tin phiên bản (40% - span 10) */}
+              <Col span={10} style={{ borderRight: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <h4 style={{ color: '#818cf8', marginBottom: '16px' }}>Thông tin phiên bản</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <strong style={{ color: '#94a3b8' }}>Người thực hiện:</strong>
+                    <div style={{ marginTop: '4px', color: '#f8fafc', fontWeight: 600 }}>{selectedLog.performed_by}</div>
+                  </div>
+                  <div>
+                    <strong style={{ color: '#94a3b8' }}>Thời gian:</strong>
+                    <div style={{ marginTop: '4px', color: '#f8fafc' }}>{new Date(selectedLog.created_at).toLocaleString('vi-VN')}</div>
+                  </div>
+                  <div>
+                    <strong style={{ color: '#94a3b8' }}>Phiên bản:</strong>
+                    <div style={{ marginTop: '4px' }}>
+                      <code style={{ color: '#eab308', fontSize: '13px', fontWeight: 600 }}>v{selectedLog.version || '—'}</code>
+                    </div>
+                  </div>
+                  <div>
+                    <strong style={{ color: '#94a3b8' }}>Hành động:</strong>
+                    <div style={{ marginTop: '4px' }}>
+                      {(() => {
+                        const info = ACTION_LABELS[selectedLog.action] || { text: selectedLog.action, color: 'default' };
+                        return <Badge status={info.color} text={<span style={{ color: '#e2e8f0', fontWeight: 500 }}>{info.text}</span>} />;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </Col>
 
-            {selectedLog.checklist && selectedLog.checklist.notes && (
-              <div style={{ marginTop: '16px', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <strong style={{ color: '#cbd5e1' }}>Ghi chú duyệt:</strong>
-                <p style={{ margin: '6px 0 0 0', color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{selectedLog.checklist.notes}</p>
-              </div>
-            )}
+              {/* Right Column: Kết quả kiểm duyệt (60% - span 14) */}
+              <Col span={14}>
+                <h4 style={{ color: '#818cf8', marginBottom: '16px' }}>Kết quả kiểm duyệt</h4>
+                
+                {/* Ghi chú duyệt */}
+                {selectedLog.checklist && selectedLog.checklist.notes && (
+                  <div style={{ marginBottom: '16px', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <strong style={{ color: '#cbd5e1' }}>Ghi chú duyệt:</strong>
+                    <p style={{ margin: '6px 0 0 0', color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{selectedLog.checklist.notes}</p>
+                  </div>
+                )}
 
-            {selectedLog.checklist && selectedLog.checklist.reason && (
-              <div style={{ marginTop: '16px', background: 'rgba(239, 68, 68, 0.08)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                <strong style={{ color: '#f87171' }}>Lý do từ chối:</strong>
-                <p style={{ margin: '6px 0 0 0', color: '#fca5a5', whiteSpace: 'pre-wrap' }}>{selectedLog.checklist.reason}</p>
-              </div>
-            )}
+                {/* Lý do từ chối */}
+                {selectedLog.checklist && selectedLog.checklist.reason && (
+                  <div style={{ marginBottom: '16px', background: 'rgba(239, 68, 68, 0.08)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <strong style={{ color: '#f87171' }}>Lý do từ chối:</strong>
+                    <p style={{ margin: '6px 0 0 0', color: '#fca5a5', whiteSpace: 'pre-wrap' }}>{selectedLog.checklist.reason}</p>
+                  </div>
+                )}
+
+                {/* Danh sách checklist */}
+                <div style={{ marginTop: '12px' }}>
+                  <strong style={{ color: '#cbd5e1', display: 'block', marginBottom: '12px' }}>Checklist kiểm tra tiêu chí an toàn:</strong>
+                  {selectedLog.checklist && selectedLog.checklist.checks ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {Object.keys(selectedLog.checklist.checks).map(k => (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} key={k}>
+                          <Badge status={selectedLog.checklist.checks[k] ? 'success' : 'error'} />
+                          <span style={{ 
+                            textDecoration: selectedLog.checklist.checks[k] ? 'none' : 'line-through', 
+                            color: selectedLog.checklist.checks[k] ? '#f8fafc' : '#64748b', 
+                            fontSize: '12px' 
+                          }}>
+                            {CHECKLIST_LABELS[k] || k}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ color: '#64748b', fontStyle: 'italic' }}>Không có checklist đánh giá (Thao tác thay đổi cờ cấu hình/kích hoạt).</p>
+                  )}
+                </div>
+              </Col>
+            </Row>
           </div>
         )}
       </Modal>
