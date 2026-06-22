@@ -657,7 +657,7 @@ export default function AccountMenuTab({ currentUser }) {
           </Row>
 
           <Row gutter={12} align="middle" style={{ background: 'rgba(255,255,255,0.02)', padding: '12px 12px 0 12px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '8px' }}>
-            <Col span={8}>
+            <Col span={6}>
               <Form.Item
                 name="mnu_order"
                 label={<span style={{ color: '#e2e8f0' }}>Thứ tự sắp xếp</span>}
@@ -669,7 +669,7 @@ export default function AccountMenuTab({ currentUser }) {
                 />
               </Form.Item>
             </Col>
-            <Col span={8} style={{ textAlign: 'center' }}>
+            <Col span={6} style={{ textAlign: 'center' }}>
               <Form.Item
                 name="requires_auth"
                 label={<span style={{ color: '#e2e8f0' }}>Cần Login</span>}
@@ -678,13 +678,22 @@ export default function AccountMenuTab({ currentUser }) {
                 <Switch />
               </Form.Item>
             </Col>
-            <Col span={8} style={{ textAlign: 'center' }}>
+            <Col span={6} style={{ textAlign: 'center' }}>
               <Form.Item
                 name="is_actived"
                 label={<span style={{ color: '#e2e8f0' }}>Hoạt động</span>}
                 valuePropName="checked"
               >
                 <Switch checkedChildren="Bật" unCheckedChildren="Tắt" />
+              </Form.Item>
+            </Col>
+            <Col span={6} style={{ textAlign: 'center' }}>
+              <Form.Item
+                name="is_hidden"
+                label={<span style={{ color: '#e2e8f0' }}>Ẩn đ.hướng Super App</span>}
+                valuePropName="checked"
+              >
+                <Switch checkedChildren="Ẩn" unCheckedChildren="Hiện" />
               </Form.Item>
             </Col>
           </Row>
