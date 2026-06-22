@@ -69,7 +69,7 @@ export default function AccountMenuTab({ currentUser }) {
   const fetchMenus = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/account-menus');
+      const res = await api.get('/account-menus?include_inactive=true');
       setGroupedMenus(res.data || []);
     } catch (err) {
       message.error('Không thể tải danh sách menu: ' + err.message);
@@ -95,7 +95,7 @@ export default function AccountMenuTab({ currentUser }) {
   const handleCreateClick = () => {
     setEditingMenu(null);
     form.resetFields();
-    form.setFieldsValue({ key: '', is_hidden: false, requires_auth: false, mnu_order: 1, menu_type: 0, permissions: [], policy: { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false }, version: '', file_path: '', file_hash: '', file_checksum: '', app_id: undefined });
+    form.setFieldsValue({ key: '', is_hidden: false, is_actived: true, requires_auth: false, mnu_order: 1, menu_type: 0, permissions: [], policy: { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false }, version: '', file_path: '', file_hash: '', file_checksum: '', app_id: undefined });
     setIconUrl('');
     setIconActiveUrl('');
     setRightIconUrl('');
@@ -124,6 +124,7 @@ export default function AccountMenuTab({ currentUser }) {
       mnu_order: menu.mnu_order,
       requires_auth: menu.requires_auth,
       is_hidden: menu.is_hidden !== false,
+      is_actived: menu.is_actived !== false,
       permissions: menu.permissions || [],
       policy: menu.policy || { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
       version: menu.version || '',
@@ -171,6 +172,7 @@ export default function AccountMenuTab({ currentUser }) {
         mnu_order: parseInt(values.mnu_order || 0),
         requires_auth: !!values.requires_auth,
         is_hidden: !!values.is_hidden,
+        is_actived: !!values.is_actived,
         permissions: values.permissions || [],
         policy: values.policy || {},
         version: values.version || null,
@@ -326,7 +328,8 @@ export default function AccountMenuTab({ currentUser }) {
                             borderRadius: '5px',
                             marginBottom: '8px',
                             cursor: canEdit ? 'grab' : 'default',
-                            transition: 'all 0.3s'
+                            transition: 'all 0.3s',
+                            opacity: item.is_actived === false ? 0.55 : 1
                           }}
                           className="menu-drag-item"
                         >
@@ -343,6 +346,11 @@ export default function AccountMenuTab({ currentUser }) {
                               <span style={{ fontSize: '9px', color: item.menu_type === 1 ? '#fb923c' : '#a78bfa', background: item.menu_type === 1 ? 'rgba(251,146,60,0.1)' : 'rgba(167,139,250,0.1)', padding: '0 4px', borderRadius: '3px', whiteSpace: 'nowrap' }}>
                                 {item.menu_type === 1 ? 'Native' : 'Webview'}
                               </span>
+                              {item.is_actived === false && (
+                                <span style={{ fontSize: '9px', color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '0 4px', borderRadius: '3px', whiteSpace: 'nowrap' }}>
+                                  Tắt
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -672,11 +680,11 @@ export default function AccountMenuTab({ currentUser }) {
             </Col>
             <Col span={8} style={{ textAlign: 'center' }}>
               <Form.Item
-                name="is_hidden"
-                label={<span style={{ color: '#e2e8f0' }}>Ẩn khỏi menu</span>}
+                name="is_actived"
+                label={<span style={{ color: '#e2e8f0' }}>Hoạt động</span>}
                 valuePropName="checked"
               >
-                <Switch checkedChildren="Ẩn" unCheckedChildren="Hiện" />
+                <Switch checkedChildren="Bật" unCheckedChildren="Tắt" />
               </Form.Item>
             </Col>
           </Row>
