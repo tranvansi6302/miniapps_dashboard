@@ -61,6 +61,54 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
   const [buildLog, setBuildLog] = useState(null);
   const [loadingBuildLog, setLoadingBuildLog] = useState(false);
 
+  const [editingChildApp, setEditingChildApp] = useState(null);
+  const [isChildAppModalOpen, setIsChildAppModalOpen] = useState(false);
+  const [childAppForm] = Form.useForm();
+
+  const handleChildAppSubmit = async (values) => {
+    try {
+      const childAppId = `${editingApp.app_id}.${values.app_id}`;
+      const payload = {
+        app_id: childAppId,
+        name: values.name,
+        category_id: editingApp.category_id || editingApp.categoryId,
+        url: values.url,
+        icon_url: values.icon_url || '',
+        version: editingApp.version || '1.0.0', // Inherit from parent
+        requires_auth: editingApp.requires_auth || false,
+        permissions: editingApp.permissions || [],
+        file_path: editingApp.file_path || '',
+        file_hash: editingApp.file_hash || '',
+        file_checksum: editingApp.file_checksum || '',
+        policy: editingApp.policy || {},
+        is_hidden: false,
+        is_actived: true
+      };
+
+      if (editingChildApp) {
+        await api.put(`/mini-apps/${editingChildApp.id}`, payload);
+        message.success('Cập nhật Mini App con thành công!');
+      } else {
+        await api.post('/mini-apps', payload);
+        message.success('Thêm Mini App con thành công!');
+      }
+      setIsChildAppModalOpen(false);
+      fetchApps();
+    } catch (err) {
+      message.error(err.message || 'Lưu Mini App con thất bại.');
+    }
+  };
+
+  const handleChildAppDelete = async (childId) => {
+    try {
+      await api.delete(`/mini-apps/${childId}`);
+      message.success('Xóa Mini App con thành công!');
+      fetchApps();
+    } catch (err) {
+      message.error(err.message || 'Xóa Mini App con thất bại.');
+    }
+  };
+
   const handleOpenBuildDetail = async (record) => {
     setSelectedBuild(record);
     setBuildLog(null);
@@ -1360,60 +1408,78 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             }}
           >
             <div style={{ overflowX: 'hidden' }}>
-              <Form
-                form={form}
-                layout="vertical"
-                onFinish={handleModalSubmit}
-                requiredMark={false}
-              >
-                <Row gutter={12}>
-                  <Col span={8}>
-                    <Form.Item
-                      name="name"
-                      label={<span style={{ color: '#e2e8f0' }}>Tên Ứng dụng</span>}
-                      rules={[{ required: true, message: 'Nhập tên ứng dụng!' }]}
-                    >
-                      <Input placeholder="Ví dụ: Booking App" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={8}>
-                    <Form.Item
-                      name="app_id"
-                      label={<span style={{ color: '#e2e8f0' }}>Mã định danh (App ID)</span>}
-                      rules={[
-                        { required: true, message: 'Nhập mã định danh!' },
-                        { pattern: /^[a-z0-9.]+$/, message: 'Chỉ chấp nhận chữ thường không dấu, số, dấu chấm!' }
-                      ]}
-                    >
-                      <Input placeholder="Ví dụ: com.ejsc.booking" disabled={true} style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={8}>
-                    <Form.Item
-                      name="category_id"
-                      label={<span style={{ color: '#e2e8f0' }}>Danh mục</span>}
-                      rules={[{ required: true, message: 'Chọn danh mục!' }]}
-                    >
-                      <Select placeholder="Chọn danh mục" dropdownStyle={{ background: '#1e293b' }}>
-                        {categories.map(c => (
-                          <Option key={c.id} value={c.id.toString()}>{c.name}</Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                </Row>
+              {(() => {
+                const isChildApp = editingApp && 
+                  (editingApp.app_id !== 'user.global.homebooking' && editingApp.app_id !== 'partner.global.homebooking') &&
+                  (editingApp.app_id?.startsWith('user.global.homebooking') || editingApp.app_id?.startsWith('partner.global.homebooking'));
+                return (
+                  <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleModalSubmit}
+                    requiredMark={false}
+                  >
+                    {isChildApp && (
+                      <div style={{
+                        background: 'rgba(99, 102, 241, 0.1)',
+                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                        padding: '12px 16px',
+                        borderRadius: '5px',
+                        color: '#cbd5e1',
+                        marginBottom: '20px',
+                        fontSize: '13px'
+                      }}>
+                        ℹ️ Đây là <strong>Mini App con</strong>. Các cấu hình về phiên bản, thành viên, tệp ZIP và quyền truy cập được đồng bộ tự động từ Mini App gốc quản lý nhóm. Ở đây bạn chỉ cần khai báo đường dẫn Router/Iframe URL.
+                      </div>
+                    )}
+                    <Row gutter={12}>
+                      <Col span={8}>
+                        <Form.Item
+                          name="name"
+                          label={<span style={{ color: '#e2e8f0' }}>Tên Ứng dụng</span>}
+                          rules={[{ required: true, message: 'Nhập tên ứng dụng!' }]}
+                        >
+                          <Input placeholder="Ví dụ: Booking App" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item
+                          name="app_id"
+                          label={<span style={{ color: '#e2e8f0' }}>Mã định danh (App ID)</span>}
+                          rules={[
+                            { required: true, message: 'Nhập mã định danh!' },
+                            { pattern: /^[a-z0-9.]+$/, message: 'Chỉ chấp nhận chữ thường không dấu, số, dấu chấm!' }
+                          ]}
+                        >
+                          <Input placeholder="Ví dụ: com.ejsc.booking" disabled={true} style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item
+                          name="category_id"
+                          label={<span style={{ color: '#e2e8f0' }}>Danh mục</span>}
+                          rules={[{ required: true, message: 'Chọn danh mục!' }]}
+                        >
+                          <Select placeholder="Chọn danh mục" dropdownStyle={{ background: '#1e293b' }}>
+                            {categories.map(c => (
+                              <Option key={c.id} value={c.id.toString()}>{c.name}</Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    </Row>
 
-                <Row gutter={12}>
-                  <Col span={8}>
-                    <Form.Item
-                      name="version"
-                      label={<span style={{ color: '#e2e8f0' }}>Phiên bản</span>}
-                      rules={[{ required: true, message: 'Nhập phiên bản!' }]}
-                    >
-                      <Input placeholder="Ví dụ: 1.0.0" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={8}>
+                    <Row gutter={12}>
+                      <Col span={8}>
+                        <Form.Item
+                          name="version"
+                          label={<span style={{ color: '#e2e8f0' }}>Phiên bản</span>}
+                          rules={[{ required: true, message: 'Nhập phiên bản!' }]}
+                        >
+                          <Input placeholder="Ví dụ: 1.0.0" disabled={isChildApp} style={{ background: isChildApp ? 'rgba(15, 23, 42, 0.4)' : 'rgba(15, 23, 42, 0.6)', color: isChildApp ? '#94a3b8' : '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
                     <Form.Item
                       name="url"
                       label={<span style={{ color: '#e2e8f0' }}>Đường dẫn Iframe chính (URL)</span>}
@@ -1515,51 +1581,52 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   </Col>
                 </Row>
 
-                <Row gutter={12}>
-                  <Col span={24}>
-                    <Form.Item
-                      name="permissions"
-                      label={<span style={{ color: '#e2e8f0' }}>Quyền truy cập (Permissions)</span>}
-                    >
-                      <Select
-                        mode="multiple"
-                        placeholder="Chọn các quyền yêu cầu..."
-                        style={{ width: '100%' }}
-                        dropdownStyle={{ background: '#1e293b' }}
-                        options={PERMISSIONS_LIST}
-                      />
+                    <Row gutter={12}>
+                      <Col span={24}>
+                        <Form.Item
+                          name="permissions"
+                          label={<span style={{ color: '#e2e8f0' }}>Quyền truy cập (Permissions)</span>}
+                        >
+                          <Select
+                            mode="multiple"
+                            placeholder="Chọn các quyền yêu cầu..."
+                            style={{ width: '100%' }}
+                            dropdownStyle={{ background: '#1e293b' }}
+                            options={PERMISSIONS_LIST}
+                            disabled={isChildApp}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Row gutter={12} style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '5px', marginBottom: '24px' }}>
+                      <Col span={24}>
+                        <Form.Item
+                          name="requires_auth"
+                          label={<span style={{ color: '#e2e8f0' }}>Yêu cầu Auth Login</span>}
+                          valuePropName="checked"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Switch disabled={isChildApp} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                      {canEdit && (
+                        <Button
+                          type="primary"
+                          htmlType="submit"
+                          loading={submitting}
+                          style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
+                        >
+                          Lưu cập nhật
+                        </Button>
+                      )}
                     </Form.Item>
-                  </Col>
-                </Row>
-
-
-
-                <Row gutter={12} style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '5px', marginBottom: '24px' }}>
-                  <Col span={24}>
-                    <Form.Item
-                      name="requires_auth"
-                      label={<span style={{ color: '#e2e8f0' }}>Yêu cầu Auth Login</span>}
-                      valuePropName="checked"
-                      style={{ marginBottom: 0 }}
-                    >
-                      <Switch />
-                    </Form.Item>
-                  </Col>
-                </Row>
-
-                <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                  {canEdit && (
-                    <Button
-                      type="primary"
-                      htmlType="submit"
-                      loading={submitting}
-                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
-                    >
-                      Lưu cập nhật
-                    </Button>
-                  )}
-                </Form.Item>
-              </Form>
+                  </Form>
+                );
+              })()}
 
 
 
@@ -2006,6 +2073,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             />
           </Card>
         )}
+
+
 
         {/* Checklist & Moderation Modal */}
         <Modal

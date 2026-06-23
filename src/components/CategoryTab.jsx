@@ -1,213 +1,264 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Card, Badge, Tooltip, message, Popconfirm } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, TagsOutlined, CodeOutlined, LinkOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Card, Badge, Tooltip, message, Popconfirm, Modal, Form, Input } from 'antd';
+import { ReloadOutlined, SettingOutlined, PlusOutlined, DeleteOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 export default function CategoryTab({ currentUser }) {
-  const [categories, setCategories] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
 
-  const categoryPerm = currentUser?.username === 'admin' ? 7 : (currentUser?.menu_permissions?.['categories'] || 0);
-  const canAdd = (categoryPerm & 1) === 1;
-  const canDelete = (categoryPerm & 2) === 2;
-  const canEdit = (categoryPerm & 4) === 4;
-
-  const fetchCategories = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      // If user is logged in, they can read all active or all admin categories. Let's hit the public GET /categories
-      const data = await api.get('/categories');
-      setCategories(data.data || data);
+      const res = await api.get('/mini-app-groups?isChildren=true');
+      const rawGroups = res.data || res;
+      // Rename children to childApps to prevent Ant Design Table default tree rendering
+      const mappedGroups = (Array.isArray(rawGroups) ? rawGroups : []).map(g => {
+        const { children, ...rest } = g;
+        return {
+          ...rest,
+          childApps: children || []
+        };
+      });
+      setGroups(mappedGroups);
     } catch (err) {
-      message.error('Không thể tải danh sách danh mục: ' + err.message);
+      message.error('Không thể tải dữ liệu: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCategories();
+    fetchData();
   }, []);
 
-  const handleCreateClick = () => {
-    if (!currentUser) {
-      message.warning('Bạn cần đăng nhập để thêm danh mục mới!');
-      return;
+  const handleManageGroup = async (record) => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/mini-apps/app-id/${record.parent_app_id}`);
+      const parentApp = res.data || res;
+      if (parentApp && parentApp.id) {
+        navigate(`/mini-apps/${parentApp.id}/manage`);
+      } else {
+        message.error('Không tìm thấy thông tin Mini App cha tương ứng.');
+      }
+    } catch (err) {
+      message.error('Không thể tìm thấy Mini App cha: ' + err.message);
+    } finally {
+      setLoading(false);
     }
-    setEditingCategory(null);
+  };
+
+  const handleOpenAddModal = (groupRecord) => {
+    setSelectedGroup(groupRecord);
     form.resetFields();
     setIsModalOpen(true);
   };
 
-  const handleEditClick = (category) => {
-    if (!currentUser) {
-      message.warning('Bạn cần đăng nhập để chỉnh sửa danh mục!');
-      return;
-    }
-    setEditingCategory(category);
-    form.setFieldsValue({
-      name: category.name,
-      code: category.code,
-      iconUrl: category.icon_url || category.iconUrl,
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (!currentUser) {
-      message.warning('Bạn cần đăng nhập để xóa danh mục!');
-      return;
-    }
-    try {
-      await api.delete(`/categories/${id}`);
-      message.success('Xóa danh mục thành công!');
-      fetchCategories();
-    } catch (err) {
-      message.error(err.message || 'Không thể xóa danh mục.');
-    }
-  };
-
-  const handleModalSubmit = async (values) => {
+  const handleAddChildAppSubmit = async (values) => {
     setSubmitting(true);
     try {
+      const routerPath = values.router;
+
+      // 1. Fetch parent app details to clone
+      const parentRes = await api.get(`/mini-apps/app-id/${selectedGroup.parent_app_id}`);
+      const parentApp = parentRes.data || parentRes;
+      if (!parentApp) {
+        throw new Error("Không tìm thấy thông tin App cha.");
+      }
+
+      // 2. Derive suffix & name from router path
+      let suffix = routerPath.replace(/^\/+/, '').replace(/\/+$/, '');
+      if (!suffix) {
+        throw new Error("Đường dẫn router không hợp lệ.");
+      }
+
+      const name = suffix
+        .split(/[-_.]+/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+      const childAppId = `${parentApp.app_id}.${suffix}`;
+
+      // 3. Register child app
       const payload = {
-        name: values.name,
-        code: values.code,
-        icon_url: values.iconUrl,
+        app_id: childAppId,
+        name: name,
+        category_id: parentApp.category_id,
+        url: routerPath,
+        icon_url: parentApp.icon_url || '',
+        version: parentApp.version || '1.0.0',
+        requires_auth: parentApp.requires_auth || false,
+        permissions: parentApp.permissions || [],
+        file_path: parentApp.file_path || '',
+        file_hash: parentApp.file_hash || '',
+        file_checksum: parentApp.file_checksum || '',
+        policy: parentApp.policy || {},
+        is_hidden: false,
+        is_actived: true
       };
 
-      if (editingCategory) {
-        await api.put(`/categories/${editingCategory.id}`, payload);
-        message.success('Cập nhật danh mục thành công!');
-      } else {
-        await api.post('/categories', payload);
-        message.success('Thêm danh mục mới thành công!');
-      }
+      await api.post('/mini-apps', payload);
+      message.success(`Khai báo Mini App con "${name}" thành công!`);
       setIsModalOpen(false);
-      fetchCategories();
+      fetchData();
     } catch (err) {
-      message.error(err.message || 'Lưu danh mục thất bại.');
+      message.error('Không thể thêm App con: ' + err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleChildDelete = async (childId) => {
+    setLoading(true);
+    try {
+      await api.delete(`/mini-apps/${childId}`);
+      message.success('Xóa Mini App con thành công!');
+      fetchData();
+    } catch (err) {
+      message.error('Không thể xóa Mini App con: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const columns = [
     {
       title: '#ID',
-      dataIndex: 'id',
-      key: 'id',
+      dataIndex: 'mapping_id',
+      key: 'mapping_id',
       width: 100,
-      sorter: (a, b) => a.id - b.id,
     },
     {
-      title: 'Tên Danh Mục',
+      title: 'Tên Nhóm',
       dataIndex: 'name',
       key: 'name',
-      render: (text, record) => (
-        <span style={{ fontWeight: 600, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {record.icon_url || record.iconUrl ? (
-            <img src={record.icon_url || record.iconUrl} alt={text} style={{ width: '20px', height: '20px', borderRadius: '5px', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
-          ) : null}
-          {text}
-        </span>
-      ),
+      render: (text) => <span style={{ fontWeight: 600, color: '#f8fafc' }}>{text}</span>,
     },
     {
-      title: 'Mã Định Danh (Code)',
-      dataIndex: 'code',
-      key: 'code',
-      render: (text) => <code style={{ color: '#ec4899', background: 'rgba(236,72,153,0.1)', padding: '2px 6px', borderRadius: '5px' }}>{text}</code>,
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      width: 150,
-      render: (isActive) => {
-        const active = isActive !== false && isActive !== 'false';
-        return active ? (
-          <Badge status="success" text={<span style={{ color: '#4ade80' }}>Đang hoạt động</span>} />
-        ) : (
-          <Badge status="error" text={<span style={{ color: '#f87171' }}>Bị ẩn</span>} />
-        );
-      },
+      title: 'Số lượng App con',
+      dataIndex: 'childApps',
+      key: 'children_count',
+      render: (childApps) => <Badge count={childApps?.length || 0} style={{ backgroundColor: '#6366f1' }} />,
     },
     {
       title: 'Hành động',
       key: 'actions',
       width: 200,
       render: (_, record) => {
-        const isActive = record.is_active !== false && record.is_active !== 'false';
         return (
           <Space size="middle">
-            <Tooltip title={canEdit ? "Chỉnh sửa danh mục" : "Bạn không có quyền chỉnh sửa"}>
-              <Button
-                type="text"
-                disabled={!canEdit}
-                icon={<EditOutlined style={{ color: canEdit ? '#6366f1' : '#64748b' }} />}
-                onClick={() => handleEditClick(record)}
-              />
-            </Tooltip>
-            {isActive && (
-              <Tooltip title={canDelete ? "Xóa danh mục" : "Bạn không có quyền xóa"}>
-                <Popconfirm
-                  title="Xác nhận xóa danh mục?"
-                  description="Danh mục này sẽ bị ẩn khỏi hệ thống Mini Apps công khai."
-                  onConfirm={() => handleDelete(record.id)}
-                  okText="Xóa"
-                  cancelText="Hủy"
-                  disabled={!canDelete}
-                >
-                  <Button
-                    type="text"
-                    danger
-                    disabled={!canDelete}
-                    icon={<DeleteOutlined style={{ color: canDelete ? '#ef4444' : '#64748b' }} />}
-                  />
-                </Popconfirm>
-              </Tooltip>
-            )}
+            <Button
+              type="primary"
+              icon={<SettingOutlined />}
+              onClick={() => handleManageGroup(record)}
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                fontWeight: 600,
+                borderRadius: '4px'
+              }}
+            >
+              Cấu hình Nhóm
+            </Button>
           </Space>
         );
       },
     },
   ];
 
+  // Render child apps table when expanding a group row
+  const expandedRowRender = (record) => {
+    const childColumns = [
+      {
+        title: 'Tên App con',
+        dataIndex: 'name',
+        key: 'name',
+        render: (text) => <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{text}</span>
+      },
+      {
+        title: 'App ID con',
+        dataIndex: 'app_id',
+        key: 'app_id',
+        render: (text) => <code style={{ color: '#ec4899', background: 'rgba(236,72,153,0.08)', padding: '2px 6px', borderRadius: '5px' }}>{text}</code>
+      },
+      {
+        title: 'Đường dẫn Router',
+        dataIndex: 'url',
+        key: 'url',
+        render: (text) => <span style={{ color: '#cbd5e1', fontFamily: 'monospace' }}>{text}</span>
+      },
+      {
+        title: 'Thao tác',
+        key: 'actions',
+        width: 100,
+        render: (_, childRecord) => (
+          <Popconfirm
+            title="Xác nhận xóa Mini App con này?"
+            description="Ứng dụng con sẽ bị gỡ khỏi hệ thống nhóm."
+            onConfirm={() => handleChildDelete(childRecord.id)}
+            okText="Xóa"
+            cancelText="Hủy"
+          >
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+            />
+          </Popconfirm>
+        )
+      }
+    ];
+
+    return (
+      <div style={{ padding: '8px 16px', background: 'rgba(15, 23, 42, 0.2)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <span style={{ color: '#a5b4fc', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <FolderOpenOutlined /> Danh sách Mini App con của nhóm "{record.name}"
+          </span>
+          <Button
+            type="primary"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => handleOpenAddModal(record)}
+            style={{ background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#a5b4fc', fontWeight: 600 }}
+          >
+            Thêm Mini App con
+          </Button>
+        </div>
+        <Table
+          columns={childColumns}
+          dataSource={(record.childApps || []).map(c => ({ ...c, key: c.id }))}
+          pagination={false}
+          size="small"
+          locale={{ emptyText: <span style={{ color: '#64748b' }}>Chưa có ứng dụng con nào được khai báo.</span> }}
+          style={{ background: 'transparent' }}
+          className="custom-table"
+        />
+      </div>
+    );
+  };
+
   return (
-    <div >
+    <div>
       <Card
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-
-            <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>Quản lý Danh mục Mini App</span>
+            <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>Quản lý Nhóm Mini App</span>
           </div>
         }
         extra={
           <Space>
-            {canAdd && (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleCreateClick}
-                style={{
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                  border: 'none',
-                  fontWeight: 600,
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
-                }}
-              >
-                Thêm Danh mục
-              </Button>
-            )}
             <Button
               type="primary"
               icon={<ReloadOutlined />}
-              onClick={fetchCategories}
+              onClick={fetchData}
               loading={loading}
               style={{ background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }}
             >
@@ -225,10 +276,14 @@ export default function CategoryTab({ currentUser }) {
       >
         <Table
           columns={columns}
-          dataSource={categories.map(c => ({ ...c, key: c.id }))}
+          dataSource={groups.map(g => ({ ...g, key: g.mapping_id }))}
           loading={loading}
+          expandable={{
+            expandedRowRender,
+            rowExpandable: () => true,
+          }}
           pagination={{ pageSize: 8, showSizeChanger: false }}
-          locale={{ emptyText: <span style={{ color: '#94a3b8' }}>Không có danh mục nào.</span> }}
+          locale={{ emptyText: <span style={{ color: '#94a3b8' }}>Không có nhóm nào được định nghĩa.</span> }}
           style={{ background: 'transparent' }}
           className="custom-table"
           size="small"
@@ -238,7 +293,7 @@ export default function CategoryTab({ currentUser }) {
       <Modal
         title={
           <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>
-            {editingCategory ? 'Chỉnh sửa Danh mục' : 'Thêm Danh mục mới'}
+            Thêm Mini App con vào nhóm "{selectedGroup?.name}"
           </span>
         }
         open={isModalOpen}
@@ -252,42 +307,20 @@ export default function CategoryTab({ currentUser }) {
         <Form
           form={form}
           layout="vertical"
-          onFinish={handleModalSubmit}
+          onFinish={handleAddChildAppSubmit}
           requiredMark={false}
         >
           <Form.Item
-            name="name"
-            label={<span style={{ color: '#e2e8f0' }}>Tên Danh Mục</span>}
-            rules={[{ required: true, message: 'Vui lòng nhập tên danh mục!' }]}
-          >
-            <Input
-              placeholder="Ví dụ: Đặt chỗ, Mua sắm, Du lịch"
-              style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="code"
-            label={<span style={{ color: '#e2e8f0' }}>Mã Danh Mục (Duy nhất)</span>}
+            name="router"
+            label={<span style={{ color: '#e2e8f0' }}>Đường dẫn Router / URL của App con</span>}
+            extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Hệ thống sẽ tự động tạo tên hiển thị và App ID dựa trên đường dẫn này. Ví dụ: /bookings hoặc /address-book</span>}
             rules={[
-              { required: true, message: 'Vui lòng nhập mã danh mục!' },
-              { pattern: /^[a-z0-9-_]+$/, message: 'Mã chỉ bao gồm chữ thường không dấu, số, gạch ngang, gạch dưới!' }
+              { required: true, message: 'Vui lòng nhập đường dẫn Router!' },
+              { pattern: /^\/[a-zA-Z0-9-_/]+$/, message: 'Đường dẫn phải bắt đầu bằng dấu gạch chéo (/), ví dụ: /profile' }
             ]}
           >
             <Input
-              placeholder="Ví dụ: booking, shopping, utilities"
-              disabled={!!editingCategory}
-              style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="iconUrl"
-            label={<span style={{ color: '#e2e8f0' }}>Đường dẫn Icon (URL)</span>}
-            rules={[{ required: true, message: 'Vui lòng nhập đường dẫn Icon cho danh mục!' }]}
-          >
-            <Input
-              placeholder="https://example.com/icon.png"
+              placeholder="Ví dụ: /profile hoặc /address-book"
               style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
             />
           </Form.Item>
@@ -303,7 +336,7 @@ export default function CategoryTab({ currentUser }) {
                 loading={submitting}
                 style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
               >
-                {editingCategory ? 'Cập nhật' : 'Thêm mới'}
+                Khai báo
               </Button>
             </Space>
           </Form.Item>

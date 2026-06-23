@@ -30,7 +30,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
   const [menus, setMenus] = useState([]);
   const [loadingMenus, setLoadingMenus] = useState(true);
 
-  const isWorkspaceRoute = /^\/mini-apps\/[^/]+\/manage$/.test(location.pathname);
+  const isWorkspaceRoute = /^\/(mini-apps|categories)\/[^/]+\/manage$/.test(location.pathname);
 
   useEffect(() => {
     const fetchMenus = async () => {
@@ -60,13 +60,14 @@ export default function DashboardLayout({ currentUser, onLogout }) {
 
   const filteredMenuItems = menus
     .filter(menu => {
+      if (menu.key === 'mini-apps') return false; // Hide Mini Apps menu
       if (currentUser.username === 'admin') return true;
       return currentUser.menu_permissions && (menu.key in currentUser.menu_permissions);
     })
     .map(menu => ({
       key: menu.key,
       icon: menuIcons[menu.key] || <AppstoreOutlined />,
-      label: menu.label
+      label: menu.key === 'categories' ? 'Nhóm Mini App' : menu.label
     }))
     .sort((a, b) => {
       if (a.key === 'dashboard') return -1;
@@ -128,7 +129,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
                 icon={<ArrowLeftOutlined style={{ fontSize: '12px' }} />}
                 onClick={() => {
                   setWorkspaceApp(null);
-                  navigate('/mini-apps');
+                  navigate('/categories');
                 }}
                 style={{
                   color: '#94a3b8',
@@ -310,7 +311,15 @@ export default function DashboardLayout({ currentUser, onLogout }) {
                       icon: <TeamOutlined style={{ fontSize: '14px' }} />,
                       label: 'Thành viên',
                     }
-                  ].map(item => ({
+                  ].filter(item => {
+                    const isChildApp = workspaceApp && 
+                      (workspaceApp.app_id !== 'user.global.homebooking' && workspaceApp.app_id !== 'partner.global.homebooking') &&
+                      (workspaceApp.app_id.startsWith('user.global.homebooking') || workspaceApp.app_id.startsWith('partner.global.homebooking'));
+                    if (isChildApp && (item.key === 'versions' || item.key === 'members')) {
+                      return false;
+                    }
+                    return true;
+                  }).map(item => ({
                     ...item,
                     style: {
                       borderRadius: '5px',

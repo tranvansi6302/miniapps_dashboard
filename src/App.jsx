@@ -152,6 +152,7 @@ export default function App() {
             <Route path="mini-apps/:id/manage" element={<PermissionGuard currentUser={currentUser} menuKey="mini-apps"><MiniAppTab currentUser={currentUser} isWorkspaceView={true} /></PermissionGuard>} />
             
             <Route path="categories" element={<PermissionGuard currentUser={currentUser} menuKey="categories"><CategoryTab currentUser={currentUser} /></PermissionGuard>} />
+            <Route path="categories/:id/manage" element={<PermissionGuard currentUser={currentUser} menuKey="categories"><CategoryTab currentUser={currentUser} isWorkspaceView={true} /></PermissionGuard>} />
             
             <Route path="app-menus" element={<PermissionGuard currentUser={currentUser} menuKey="app-menus"><AppMenuTab currentUser={currentUser} /></PermissionGuard>} />
             <Route path="app-menus/new" element={<PermissionGuard currentUser={currentUser} menuKey="app-menus"><AppMenuTab currentUser={currentUser} forceFormView={true} /></PermissionGuard>} />

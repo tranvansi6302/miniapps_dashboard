@@ -112,14 +112,8 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
         menupid: record.menupid,
         app_id: record.app_id,
         requires_auth: record.requires_auth,
-        version: record.version,
-        file_path: record.file_path,
         url: record.url,
-        is_hidden: record.is_hidden,
-        permissions: record.permissions || [],
-        policy: record.policy || { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
-        file_hash: record.file_hash,
-        file_checksum: record.file_checksum
+        is_hidden: record.is_hidden
       });
       setSelectedAppId(record.app_id);
       setBgColor(record.mnu_bg_color || '');
@@ -148,10 +142,6 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
           mnu_order: 0,
           mnu_position: 'SIDEBAR',
           requires_auth: false,
-          permissions: [],
-          policy: { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
-          file_hash: '',
-          file_checksum: ''
         });
         setSelectedAppId(null);
         setBgColor('');
@@ -620,43 +610,7 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
                     📝 <em>Để trống = Native (menu_type=1) | Có nhập = Webview (menu_type=0)</em>
                   </div>
 
-                  {selectedAppId ? (
-                    <div style={{ background: 'rgba(99, 102, 241, 0.05)', padding: '12px', borderRadius: '6px', border: '1px dashed rgba(99, 102, 241, 0.2)' }}>
-                      <Space size="small" align="start">
-                        <InfoCircleOutlined style={{ color: '#a5b4fc', marginTop: 3 }} />
-                        <Text type="secondary" style={{ fontSize: 12, color: '#94a3b8' }}>
-                          Phiên bản (Version) và Đường dẫn file build (.zip) sẽ được tự động đồng bộ từ Mini App: <strong style={{ color: '#818cf8' }}>{selectedAppId}</strong>.
-                        </Text>
-                      </Space>
-                    </div>
-                  ) : (
-                    <>
-                      <Row gutter={16}>
-                        <Col span={12}>
-                          <Form.Item name="version" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Phiên bản</span>}>
-                            <Input placeholder="1.0.0" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item name="file_path" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Đường dẫn file build (.zip)</span>}>
-                            <Input placeholder="Đường dẫn file zip" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                      <Row gutter={16}>
-                        <Col span={12}>
-                          <Form.Item name="file_hash" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>File Hash (SHA-256)</span>}>
-                            <Input placeholder="Mã băm SHA-256 của file zip" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item name="file_checksum" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>File Checksum</span>}>
-                            <Input placeholder="Mã kiểm tra tính toàn vẹn" style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                    </>
-                  )}
+
                 </div>
               </Col>
 
@@ -782,67 +736,7 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
                     </Col>
                   </Row>
 
-                  <Divider orientation="left" style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '16px 0 12px' }}>
-                    <span style={{ color: '#818cf8', fontSize: '12px', fontWeight: 600 }}>Cấu hình Quyền & Chính sách (Permissions & Policy)</span>
-                  </Divider>
 
-                  <Row gutter={12}>
-                    <Col span={24}>
-                      <Form.Item
-                        name="permissions"
-                        label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Quyền truy cập (Permissions)</span>}
-                      >
-                        <Select
-                          mode="multiple"
-                          placeholder="Chọn các quyền yêu cầu..."
-                          style={{ width: '100%' }}
-                          dropdownStyle={{ background: '#1e293b' }}
-                          options={PERMISSIONS_LIST}
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  <Row gutter={12}>
-                    <Col span={24}>
-                      <Form.Item
-                        name={['policy', 'allowedDomains']}
-                        label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Tên miền được phép truy cập (Allowed Domains)</span>}
-                        extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Nhập tên miền và bấm Enter (ví dụ: homebooking-user.vercel.app)</span>}
-                      >
-                        <Select
-                          mode="tags"
-                          style={{ width: '100%' }}
-                          tokenSeparators={[',', ' ']}
-                          placeholder="Nhập tên miền..."
-                          dropdownStyle={{ display: 'none' }}
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  <Row gutter={12} style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '8px' }}>
-                    <Col span={12}>
-                      <Form.Item
-                        name={['policy', 'allowExternalNavigation']}
-                        label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Cho phép điều hướng ra ngoài</span>}
-                        valuePropName="checked"
-                        style={{ marginBottom: 0 }}
-                      >
-                        <Switch checkedChildren="Có" unCheckedChildren="Không" />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        name={['policy', 'allowFileDownload']}
-                        label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Cho phép tải tệp tin</span>}
-                        valuePropName="checked"
-                        style={{ marginBottom: 0 }}
-                      >
-                        <Switch checkedChildren="Có" unCheckedChildren="Không" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
                 </div>
               </Col>
             </Row>
@@ -877,21 +771,18 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
 
   const activeTab = previewMenus.find(m => m.id === activeTabId);
 
+  const filteredMenus = menus.filter(item => {
+    if (filterAppId === 'ALL') return true;
+    if (filterAppId === 'NONE') return !item.app_id;
+    return item.app_id === filterAppId;
+  }).sort((a, b) => (a.mnu_order || 0) - (b.mnu_order || 0));
+
   return (
     <div>
       <Card 
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>Quản lý Menu Portal</span>
-            <Segmented
-              value={viewMode}
-              onChange={setViewMode}
-              options={[
-                { label: 'Gom nhóm Mini App', value: 'grouped' },
-                { label: 'Cấu hình dạng Cây', value: 'tree' }
-              ]}
-              style={{ background: 'rgba(15, 23, 42, 0.4)', color: '#94a3b8' }}
-            />
           </div>
         }
         extra={
@@ -945,150 +836,70 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
           borderRadius: '5px',
         }}
       >
-        {viewMode === 'grouped' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {getGroupedData().length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                Không tìm thấy menu phù hợp theo điều kiện lọc.
-              </div>
-            ) : (
-              getGroupedData().map(group => {
-                const bottomMenusCount = group.menus.filter(m => m.mnu_position === 'BOTTOM_NAV').length;
-                return (
-                  <Card
-                    key={group.key}
-                    type="inner"
-                    style={{
-                      background: 'rgba(15, 23, 42, 0.2)',
-                      borderColor: 'rgba(255,255,255,0.06)',
-                      borderRadius: '8px'
-                    }}
-                    title={
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {group.icon_url ? (
-                          <img src={group.icon_url} alt="" style={{ width: 28, height: 28, borderRadius: '6px', objectFit: 'contain' }} />
-                        ) : (
-                          <SettingOutlined style={{ color: '#818cf8', fontSize: '18px' }} />
-                        )}
-                        <div>
-                          <div style={{ color: '#fff', fontSize: '14px', fontWeight: '600' }}>
-                            {group.name}
-                          </div>
-                          {group.app_id !== 'unlinked' && (
-                            <Text code style={{ fontSize: '11px', color: '#818cf8', background: 'rgba(129,140,248,0.1)' }}>
-                              {group.app_id}
-                            </Text>
-                          )}
-                        </div>
-                      </div>
-                    }
-                    extra={
-                      <Button
-                        type="primary"
-                        disabled={bottomMenusCount === 0}
-                        icon={<MobileOutlined />}
-                        onClick={() => openPreview(group.app_id)}
-                        style={{
-                          background: bottomMenusCount > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'rgba(255,255,255,0.08)',
-                          borderColor: 'transparent',
-                          borderRadius: '5px',
-                          fontWeight: '500'
-                        }}
-                      >
-                        Xem trước Bottom Nav ({bottomMenusCount})
-                      </Button>
-                    }
-                  >
-                    <Table
-                      columns={columnsGrouped}
-                      dataSource={group.menus.map(m => ({ ...m, key: m.id }))}
-                      pagination={false}
-                      size="small"
-                      style={{ background: 'transparent' }}
-                      locale={{ emptyText: <span style={{ color: '#94a3b8' }}>Không có menu nào.</span> }}
-                    />
-                  </Card>
-                );
-              })
-            )}
-          </div>
-        ) : (
-          <Table 
-            columns={columns} 
-            dataSource={treeMenus} 
-            loading={loading}
-            pagination={{ pageSize: 8, showSizeChanger: false }}
-            locale={{ emptyText: <span style={{ color: '#94a3b8' }}>Chưa có cấu hình menu nào.</span> }}
-            style={{ background: 'transparent' }}
-            className="custom-table"
-            size="small"
-            onRow={(record) => ({
-              draggable: true,
-              style: { 
-                cursor: 'grab', 
-                background: record.id === hoveredRowId ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-                transition: 'background 0.2s ease'
-              },
-              onDragStart: (e) => {
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', record.id);
-                window.draggedRecord = record;
-              },
-              onDragEnter: (e) => {
-                e.preventDefault();
-                if (window.draggedRecord && window.draggedRecord.id !== record.id) {
-                  setHoveredRowId(record.id);
-                }
-              },
-              onDragOver: (e) => {
-                e.preventDefault();
-              },
-              onDragLeave: () => {
-                setHoveredRowId(null);
-              },
-              onDrop: async (e) => {
-                e.preventDefault();
-                setHoveredRowId(null);
-                const dragRecord = window.draggedRecord;
-                const hoverRecord = record;
-                if (!dragRecord || dragRecord.id === hoverRecord.id) return;
+        <Table 
+          columns={columns} 
+          dataSource={filteredMenus.map(m => ({ ...m, key: m.id }))} 
+          loading={loading}
+          pagination={{ pageSize: 8, showSizeChanger: false }}
+          locale={{ emptyText: <span style={{ color: '#94a3b8' }}>Chưa có cấu hình menu nào.</span> }}
+          style={{ background: 'transparent' }}
+          className="custom-table"
+          size="small"
+          onRow={(record) => ({
+            draggable: true,
+            style: { 
+              cursor: 'grab', 
+              background: record.id === hoveredRowId ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+              transition: 'background 0.2s ease'
+            },
+            onDragStart: (e) => {
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', record.id);
+              window.draggedRecord = record;
+            },
+            onDragEnter: (e) => {
+              e.preventDefault();
+              if (window.draggedRecord && window.draggedRecord.id !== record.id) {
+                setHoveredRowId(record.id);
+              }
+            },
+            onDragOver: (e) => {
+              e.preventDefault();
+            },
+            onDragLeave: () => {
+              setHoveredRowId(null);
+            },
+            onDrop: async (e) => {
+              e.preventDefault();
+              setHoveredRowId(null);
+              const dragRecord = window.draggedRecord;
+              const hoverRecord = record;
+              if (!dragRecord || dragRecord.id === hoverRecord.id) return;
+              
+              const siblings = [...menus];
+              const dragIdx = siblings.findIndex(s => s.id === dragRecord.id);
+              const hoverIdx = siblings.findIndex(s => s.id === hoverRecord.id);
+              
+              if (hoverIdx !== -1 && dragIdx !== -1) {
+                siblings.splice(dragIdx, 1);
+                siblings.splice(hoverIdx, 0, dragRecord);
                 
-                // Find the siblings of the hover record (same level, sharing the same menupid)
-                const siblings = menus.filter(m => m.menupid === hoverRecord.menupid);
+                const orderUpdates = siblings.map((item, idx) => ({
+                  id: item.id,
+                  mnu_order: idx + 1
+                }));
                 
-                const dragIdx = siblings.findIndex(s => s.id === dragRecord.id);
-                const hoverIdx = siblings.findIndex(s => s.id === hoverRecord.id);
-                
-                if (hoverIdx !== -1) {
-                  let newSiblings = [...siblings];
-                  if (dragIdx !== -1) {
-                    newSiblings.splice(dragIdx, 1);
-                  }
-                  
-                  const targetIdx = newSiblings.findIndex(s => s.id === hoverRecord.id);
-                  const cleanDragRecord = { ...dragRecord, menupid: hoverRecord.menupid };
-                  newSiblings.splice(targetIdx, 0, cleanDragRecord);
-                  
-                  const orderUpdates = newSiblings.map((item, idx) => ({
-                    id: item.id,
-                    mnu_order: idx + 1
-                  }));
-                  
-                  try {
-                    if (dragRecord.menupid !== hoverRecord.menupid) {
-                      await api.put(`/app-menus/${dragRecord.id}`, { menupid: hoverRecord.menupid });
-                    }
-                    await api.put('/app-menus/order/bulk', { items: orderUpdates });
-                    message.success('Sắp xếp thứ tự thành công!');
-                    fetchMenus();
-                  } catch (err) {
-                    message.error('Sắp xếp thất bại: ' + err.message);
-                  }
+                try {
+                  await api.put('/app-menus/order/bulk', { items: orderUpdates });
+                  message.success('Sắp xếp thứ tự thành công!');
+                  fetchMenus();
+                } catch (err) {
+                  message.error('Sắp xếp thất bại: ' + err.message);
                 }
               }
-            })}
-          />
-        )}
+            }
+          })}
+        />
       </Card>
 
       <Modal
