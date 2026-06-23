@@ -49,6 +49,7 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
   
   // Track selected values for live previews
   const [selectedAppId, setSelectedAppId] = useState(null);
+  const [selectedMenuType, setSelectedMenuType] = useState(0);
   const [bgColor, setBgColor] = useState('');
   const [brdColor, setBrdColor] = useState('');
   const [txtColor, setTxtColor] = useState('');
@@ -113,9 +114,11 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
         app_id: record.app_id,
         requires_auth: record.requires_auth,
         url: record.url,
+        menu_type: record.menu_type,
         is_hidden: record.is_hidden
       });
       setSelectedAppId(record.app_id);
+      setSelectedMenuType(record.menu_type ?? 0);
       setBgColor(record.mnu_bg_color || '');
       setBrdColor(record.mnu_brd_color || '');
       setTxtColor(record.mnu_txt_color || '');
@@ -142,8 +145,10 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
           mnu_order: 0,
           mnu_position: 'SIDEBAR',
           requires_auth: false,
+          menu_type: 0,
         });
         setSelectedAppId(null);
+        setSelectedMenuType(0);
         setBgColor('');
         setBrdColor('');
         setTxtColor('');
@@ -203,12 +208,15 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
       if (values.app_id === '') values.app_id = null;
       if (values.menupid === '') values.menupid = null;
 
-      // Automatically determine menu_type based on url entry
+      // Use user-selected menu_type, defaulting to 0
+      if (values.menu_type === undefined) {
+        values.menu_type = 0;
+      } else {
+        values.menu_type = parseInt(values.menu_type);
+      }
+
       if (!values.url || values.url.trim() === '') {
         values.url = null;
-        values.menu_type = 1; // 1: Native
-      } else {
-        values.menu_type = 0; // 0: Webview
       }
 
       if (isEditing) {
@@ -509,6 +517,9 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
               if (changedValues.app_id !== undefined) {
                 setSelectedAppId(changedValues.app_id);
               }
+              if (changedValues.menu_type !== undefined) {
+                setSelectedMenuType(changedValues.menu_type);
+              }
               if (changedValues.mnu_bg_color !== undefined) setBgColor(changedValues.mnu_bg_color);
               if (changedValues.mnu_brd_color !== undefined) setBrdColor(changedValues.mnu_brd_color);
               if (changedValues.mnu_txt_color !== undefined) setTxtColor(changedValues.mnu_txt_color);
@@ -575,10 +586,26 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
                     </Select>
                   </Form.Item>
 
+                  <Form.Item 
+                    name="menu_type" 
+                    label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Loại Menu</span>}
+                    initialValue={0}
+                  >
+                    <Segmented
+                      options={[
+                        { label: 'Webview (Mini App)', value: 0 },
+                        { label: 'Native (Nội bộ)', value: 1 }
+                      ]}
+                      style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', width: '100%', padding: '4px' }}
+                    />
+                  </Form.Item>
+
                   <Form.Item name="app_id" label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Liên kết Mini App</span>}>
                     <Select 
+                      showSearch
+                      optionFilterProp="children"
                       allowClear 
-                      placeholder="Chọn Mini App liên kết (Không bắt buộc)"
+                      placeholder="Tìm kiếm và chọn Mini App liên kết (Không bắt buộc)"
                       style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '5px' }}
                     >
                       {miniApps.map(app => (
@@ -597,17 +624,21 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
 
                   <Form.Item 
                     name="url" 
-                    label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Đường dẫn (URL / Router sub-route)</span>}
+                    label={<span style={{ color: '#cbd5e1', fontWeight: 500 }}>Đường dẫn (URL / Router)</span>}
                   >
                     <Input 
-                      placeholder={selectedAppId ? "Ví dụ: /my-rooms, /home (Tự động nối vào URL Mini App)" : "Ví dụ: https://google.com, /home"} 
+                      placeholder={selectedMenuType === 0 
+                        ? (selectedAppId ? "Ví dụ: /services, /bookings (Tự động nối vào URL Mini App)" : "Ví dụ: https://google.com")
+                        : "Ví dụ: /account, /language (Đường dẫn màn hình Native)"
+                      } 
                       style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} 
                     />
                   </Form.Item>
                   <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '-8px', marginBottom: '16px', lineHeight: '1.5' }}>
-                    💡 {selectedAppId ? `Menu liên kết với Mini App ${selectedAppId}: Nhập router con (ví dụ: /rooms). Chúng tôi sẽ tự ghép nối vào URL gốc.` : 'Nhập URL đầy đủ nếu không liên kết Mini App.'}
-                    <br />
-                    📝 <em>Để trống = Native (menu_type=1) | Có nhập = Webview (menu_type=0)</em>
+                    💡 {selectedMenuType === 0 
+                      ? (selectedAppId ? `Menu liên kết với Mini App ${selectedAppId}: Nhập router con (ví dụ: /services). Chúng tôi sẽ tự ghép nối vào URL gốc.` : 'Nhập URL đầy đủ của trang web.')
+                      : 'Nhập đường dẫn trang trong ứng dụng di động (Ví dụ: /account).'
+                    }
                   </div>
 
 
