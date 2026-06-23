@@ -241,7 +241,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               file_path: appData.file_path || appData.filePath || '',
               file_hash: appData.file_hash || '',
               file_checksum: appData.file_checksum || '',
-              policy: appData.policy || { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
+              policy: appData.policy || { allowed_domains: [], allow_external_navigation: false, allow_file_download: false },
             });
 
             // Fetch membership list
@@ -295,7 +295,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             file_path: app.file_path || app.filePath || '',
             file_hash: app.file_hash || '',
             file_checksum: app.file_checksum || '',
-            policy: app.policy || { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
+            policy: app.policy || { allowed_domains: [], allow_external_navigation: false, allow_file_download: false },
           });
         }
       } else if (!id) {
@@ -309,7 +309,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           file_path: '',
           file_hash: '',
           file_checksum: '',
-          policy: { allowedDomains: [], allowExternalNavigation: false, allowFileDownload: false },
+          policy: { allowed_domains: [], allow_external_navigation: false, allow_file_download: false },
         });
       }
     }
@@ -421,7 +421,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
     legal_content: 'Nội dung hợp pháp — không 18+, cờ bạc, lừa đảo, bạo lực, vi phạm bản quyền',
     payment_iap: 'Thanh toán — chỉ dịch vụ/hàng vật lý; số/xu/premium → bắt buộc IAP',
     min_permissions: 'Quyền tối thiểu — xin đúng nhu cầu thật, không xin thừa',
-    domain_https: 'Domain & HTTPS — host trong allowedDomains, toàn bộ request là HTTPS',
+    domain_https: 'Domain & HTTPS — host trong allowed_domains, toàn bộ request là HTTPS',
     privacy_policy: 'Privacy — có privacy policy nếu thu thập dữ liệu cá nhân',
     no_bridge_abuse: 'Không lạm dụng Bridge — không mở rộng native ngoài method được cấp',
     stability_check: 'Ổn định — tải được, không trang trắng/"đang phát triển"',
@@ -2573,7 +2573,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               <Row gutter={12}>
                 <Col span={24}>
                   <Form.Item
-                    name={['policy', 'allowedDomains']}
+                    name={['policy', 'allowed_domains']}
                     label={<span style={{ color: '#e2e8f0' }}>Tên miền được phép truy cập (Allowed Domains)</span>}
                     extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Nhập tên miền và bấm Enter (ví dụ: mini.example.com)</span>}
                   >
@@ -2591,7 +2591,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
               <Row gutter={12} style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '5px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <Col span={12}>
                   <Form.Item
-                    name={['policy', 'allowExternalNavigation']}
+                    name={['policy', 'allow_external_navigation']}
                     label={<span style={{ color: '#e2e8f0' }}>Cho phép điều hướng ra ngoài app (External Navigation)</span>}
                     valuePropName="checked"
                     style={{ marginBottom: 0 }}
@@ -2601,7 +2601,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 </Col>
                 <Col span={12}>
                   <Form.Item
-                    name={['policy', 'allowFileDownload']}
+                    name={['policy', 'allow_file_download']}
                     label={<span style={{ color: '#e2e8f0' }}>Cho phép tải tệp tin (File Download)</span>}
                     valuePropName="checked"
                     style={{ marginBottom: 0 }}
