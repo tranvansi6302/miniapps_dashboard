@@ -1599,6 +1599,52 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                       </Col>
                     </Row>
 
+                    <Divider orientation="left" style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '24px 0 16px' }}>
+                      <span style={{ color: '#818cf8', fontSize: '13px', fontWeight: 600 }}>Cấu hình Chính sách bảo mật (Security Policy)</span>
+                    </Divider>
+
+                    <Row gutter={12}>
+                      <Col span={24}>
+                        <Form.Item
+                          name={['policy', 'allowed_domains']}
+                          label={<span style={{ color: '#e2e8f0' }}>Tên miền được phép truy cập (Allowed Domains)</span>}
+                          extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Nhập tên miền và bấm Enter (ví dụ: mini.example.com)</span>}
+                        >
+                          <Select
+                            mode="tags"
+                            style={{ width: '100%' }}
+                            placeholder="Nhập tên miền..."
+                            tokenSeparators={[',', ' ']}
+                            dropdownStyle={{ display: 'none' }}
+                            disabled={isChildApp}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Row gutter={12} style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '5px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['policy', 'allow_external_navigation']}
+                          label={<span style={{ color: '#e2e8f0' }}>Cho phép điều hướng ra ngoài app (External Navigation)</span>}
+                          valuePropName="checked"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Switch disabled={isChildApp} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['policy', 'allow_file_download']}
+                          label={<span style={{ color: '#e2e8f0' }}>Cho phép tải tệp tin (File Download)</span>}
+                          valuePropName="checked"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Switch disabled={isChildApp} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
                     <Row gutter={12} style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '5px', marginBottom: '24px' }}>
                       <Col span={24}>
                         <Form.Item
