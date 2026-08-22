@@ -60,7 +60,7 @@ export default function DashboardLayout({ currentUser, onLogout }) {
 
   const filteredMenuItems = menus
     .filter(menu => {
-      if (menu.key === 'mini-apps') return false; // Hide Mini Apps menu
+      if (menu.key === 'mini-apps' || menu.key === 'scripts') return false; // Hide Mini Apps and Scripts menu
       if (currentUser.username === 'admin') return true;
       return currentUser.menu_permissions && (menu.key in currentUser.menu_permissions);
     })

@@ -101,7 +101,8 @@ export default function CategoryTab({ currentUser }) {
         file_checksum: parentApp.file_checksum || '',
         policy: parentApp.policy || {},
         is_hidden: false,
-        is_actived: true
+        is_actived: true,
+        parent_id: parentApp.id
       };
 
       await api.post('/mini-apps', payload);
