@@ -4,6 +4,8 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PhoneOutlin
 import { api } from '../services/api';
 
 const CATEGORY_LABELS = {
+  "TÀI KHOẢN": "TÀI KHOẢN",
+  "HỖ TRỢ": "HỖ TRỢ",
   "hb-vw-mn-ac-group-account": "TÀI KHOẢN",
   "hb-vw-mn-ac-group-support": "HỖ TRỢ"
 };
@@ -230,6 +232,11 @@ export default function AccountMenuTab({ currentUser }) {
     }
   };
 
+  const groupsToRender = groupedMenus && groupedMenus.length > 0 ? groupedMenus : [
+    { category: "TÀI KHOẢN", items: [] },
+    { category: "HỖ TRỢ", items: [] }
+  ];
+
   return (
     <div>
       <Card
@@ -283,18 +290,19 @@ export default function AccountMenuTab({ currentUser }) {
         }}
       >
         <Row gutter={[16, 16]}>
-          {Object.keys(CATEGORY_LABELS).map((catKey) => {
-            const group = groupedMenus.find(g => g.category === catKey) || { category: catKey, items: [] };
+          {groupsToRender.map((group) => {
+            const catKey = group.category;
+            const titleLabel = CATEGORY_LABELS[catKey] || catKey;
             return (
               <Col xs={24} md={12} key={catKey}>
                 <Card
-                  title={<span style={{ color: '#cbd5e1', fontSize: '13px', fontWeight: 'bold' }}>{CATEGORY_LABELS[catKey]}</span>}
+                  title={<span style={{ color: '#cbd5e1', fontSize: '13px', fontWeight: 'bold' }}>{titleLabel}</span>}
                   bordered={false}
                   style={{ background: 'rgba(15, 23, 42, 0.3)', border: '1px solid rgba(255, 255, 255, 0.04)' }}
                   bodyStyle={{ padding: '8px' }}
                 >
                   <div style={{ minHeight: '150px' }}>
-                    {group.items.length === 0 ? (
+                    {(!group.items || group.items.length === 0) ? (
                       <div style={{ textAlign: 'center', color: '#64748b', padding: '24px 0', fontSize: '12px' }}>
                         Kéo thả hoặc thêm menu vào đây
                       </div>
