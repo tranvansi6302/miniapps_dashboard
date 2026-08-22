@@ -1451,7 +1451,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                             { pattern: /^[a-z0-9.]+$/, message: 'Chỉ chấp nhận chữ thường không dấu, số, dấu chấm!' }
                           ]}
                         >
-                          <Input placeholder="Ví dụ: com.ejsc.booking" disabled={true} style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          <Input placeholder="Ví dụ: com.ejsc.booking" disabled={false} style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
                         </Form.Item>
                       </Col>
                       <Col span={8}>
@@ -1476,7 +1476,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                           label={<span style={{ color: '#e2e8f0' }}>Phiên bản</span>}
                           rules={[{ required: true, message: 'Nhập phiên bản!' }]}
                         >
-                          <Input placeholder="Ví dụ: 1.0.0" disabled={isChildApp} style={{ background: isChildApp ? 'rgba(15, 23, 42, 0.4)' : 'rgba(15, 23, 42, 0.6)', color: isChildApp ? '#94a3b8' : '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                          <Input placeholder="Ví dụ: 1.0.0" disabled={false} style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
                         </Form.Item>
                       </Col>
                       <Col span={8}>
@@ -1593,7 +1593,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                             style={{ width: '100%' }}
                             dropdownStyle={{ background: '#1e293b' }}
                             options={PERMISSIONS_LIST}
-                            disabled={isChildApp}
+                            disabled={false}
                           />
                         </Form.Item>
                       </Col>
@@ -1616,7 +1616,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                             placeholder="Nhập tên miền..."
                             tokenSeparators={[',', ' ']}
                             dropdownStyle={{ display: 'none' }}
-                            disabled={isChildApp}
+                            disabled={false}
                           />
                         </Form.Item>
                       </Col>
@@ -1630,7 +1630,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                           valuePropName="checked"
                           style={{ marginBottom: 0 }}
                         >
-                          <Switch disabled={isChildApp} />
+                          <Switch disabled={false} />
                         </Form.Item>
                       </Col>
                       <Col span={12}>
@@ -1640,7 +1640,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                           valuePropName="checked"
                           style={{ marginBottom: 0 }}
                         >
-                          <Switch disabled={isChildApp} />
+                          <Switch disabled={false} />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -1653,7 +1653,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                           valuePropName="checked"
                           style={{ marginBottom: 0 }}
                         >
-                          <Switch disabled={isChildApp} />
+                          <Switch disabled={false} />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -2465,7 +2465,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                       { pattern: /^[a-z0-9.]+$/, message: 'Chỉ chấp nhận chữ thường không dấu, số, dấu chấm!' }
                     ]}
                   >
-                    <Input placeholder="Ví dụ: com.ejsc.booking" disabled={!!editingApp} style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
+                    <Input placeholder="Ví dụ: com.ejsc.booking" disabled={false} style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }} />
                   </Form.Item>
                 </Col>
                 <Col span={8}>

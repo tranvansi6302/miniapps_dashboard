@@ -124,6 +124,7 @@ export default function CategoryTab({ currentUser }) {
   const handleOpenEditChildModal = (childRecord) => {
     setEditingChildApp(childRecord);
     editForm.setFieldsValue({
+      app_id: childRecord.app_id || '',
       name: childRecord.name || '',
       url: childRecord.url || '',
       short_description: childRecord.short_description || '',
@@ -407,6 +408,18 @@ export default function CategoryTab({ currentUser }) {
           onFinish={handleEditChildAppSubmit}
           requiredMark={false}
         >
+          <Form.Item
+            name="app_id"
+            label={<span style={{ color: '#e2e8f0' }}>Mã App ID con</span>}
+            rules={[{ required: true, message: 'Vui lòng nhập App ID!' }]}
+            extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Mã định danh duy nhất của Mini App con</span>}
+          >
+            <Input
+              placeholder="Ví dụ: com.365ejsc.homebooking.services"
+              style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+          </Form.Item>
+
           <Form.Item
             name="name"
             label={<span style={{ color: '#e2e8f0' }}>Tên Mini App con</span>}
