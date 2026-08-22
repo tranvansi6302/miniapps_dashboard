@@ -258,6 +258,18 @@ export default function CategoryTab({ currentUser }) {
           <Space>
             <Button
               type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => navigate('/mini-apps/new')}
+              style={{
+                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                border: 'none',
+                fontWeight: 600
+              }}
+            >
+              + Khai báo Mini App Cha mới
+            </Button>
+            <Button
+              type="primary"
               icon={<ReloadOutlined />}
               onClick={fetchData}
               loading={loading}

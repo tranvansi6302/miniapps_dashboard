@@ -60,14 +60,14 @@ export default function DashboardLayout({ currentUser, onLogout }) {
 
   const filteredMenuItems = menus
     .filter(menu => {
-      if (menu.key === 'mini-apps' || menu.key === 'scripts') return false; // Hide Mini Apps and Scripts menu
+      if (menu.key === 'scripts') return false; // Hide only Scripts menu
       if (currentUser.username === 'admin') return true;
       return currentUser.menu_permissions && (menu.key in currentUser.menu_permissions);
     })
     .map(menu => ({
       key: menu.key,
       icon: menuIcons[menu.key] || <AppstoreOutlined />,
-      label: menu.key === 'categories' ? 'Nhóm Mini App' : menu.label
+      label: menu.key === 'categories' ? 'Nhóm Mini App' : (menu.key === 'mini-apps' ? 'Tất cả Mini App' : menu.label)
     }))
     .sort((a, b) => {
       if (a.key === 'dashboard') return -1;
