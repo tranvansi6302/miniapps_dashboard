@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Card, Badge, Tooltip, message, Popconfirm, Modal, Form, Input } from 'antd';
-import { ReloadOutlined, SettingOutlined, PlusOutlined, DeleteOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SettingOutlined, PlusOutlined, DeleteOutlined, FolderOpenOutlined, EditOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,6 +9,12 @@ export default function CategoryTab({ currentUser }) {
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  
+  // State for Editing Child Mini App
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingChildApp, setEditingChildApp] = useState(null);
+  const [editForm] = Form.useForm();
+
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -115,6 +121,33 @@ export default function CategoryTab({ currentUser }) {
     }
   };
 
+  const handleOpenEditChildModal = (childRecord) => {
+    setEditingChildApp(childRecord);
+    editForm.setFieldsValue({
+      name: childRecord.name || '',
+      url: childRecord.url || '',
+      short_description: childRecord.short_description || '',
+      version: childRecord.version || '1.0.0',
+      icon_url: childRecord.icon_url || '',
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditChildAppSubmit = async (values) => {
+    if (!editingChildApp) return;
+    setSubmitting(true);
+    try {
+      await api.put(`/mini-apps/${editingChildApp.id}`, values);
+      message.success(`Cập nhật Mini App con "${values.name || editingChildApp.name}" thành công!`);
+      setIsEditModalOpen(false);
+      fetchData();
+    } catch (err) {
+      message.error('Không thể cập nhật Mini App con: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleChildDelete = async (childId) => {
     setLoading(true);
     try {
@@ -189,7 +222,7 @@ export default function CategoryTab({ currentUser }) {
         render: (text) => <code style={{ color: '#ec4899', background: 'rgba(236,72,153,0.08)', padding: '2px 6px', borderRadius: '5px' }}>{text}</code>
       },
       {
-        title: 'Đường dẫn Router',
+        title: 'Đường dẫn Router / URL',
         dataIndex: 'url',
         key: 'url',
         render: (text) => <span style={{ color: '#cbd5e1', fontFamily: 'monospace' }}>{text}</span>
@@ -197,21 +230,31 @@ export default function CategoryTab({ currentUser }) {
       {
         title: 'Thao tác',
         key: 'actions',
-        width: 100,
+        width: 120,
         render: (_, childRecord) => (
-          <Popconfirm
-            title="Xác nhận xóa Mini App con này?"
-            description="Ứng dụng con sẽ bị gỡ khỏi hệ thống nhóm."
-            onConfirm={() => handleChildDelete(childRecord.id)}
-            okText="Xóa"
-            cancelText="Hủy"
-          >
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-            />
-          </Popconfirm>
+          <Space size="small">
+            <Tooltip title="Chỉnh sửa Mini App con">
+              <Button
+                type="text"
+                style={{ color: '#60a5fa' }}
+                icon={<EditOutlined />}
+                onClick={() => handleOpenEditChildModal(childRecord)}
+              />
+            </Tooltip>
+            <Popconfirm
+              title="Xác nhận xóa Mini App con này?"
+              description="Ứng dụng con sẽ bị gỡ khỏi hệ thống nhóm."
+              onConfirm={() => handleChildDelete(childRecord.id)}
+              okText="Xóa"
+              cancelText="Hủy"
+            >
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+              />
+            </Popconfirm>
+          </Space>
         )
       }
     ];
@@ -290,6 +333,7 @@ export default function CategoryTab({ currentUser }) {
         />
       </Card>
 
+      {/* Modal Add Child App */}
       <Modal
         title={
           <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>
@@ -315,12 +359,11 @@ export default function CategoryTab({ currentUser }) {
             label={<span style={{ color: '#e2e8f0' }}>Đường dẫn Router / URL của App con</span>}
             extra={<span style={{ color: '#64748b', fontSize: '11px' }}>Hệ thống sẽ tự động tạo tên hiển thị và App ID dựa trên đường dẫn này. Ví dụ: /bookings hoặc /address-book</span>}
             rules={[
-              { required: true, message: 'Vui lòng nhập đường dẫn Router!' },
-              { pattern: /^\/[a-zA-Z0-9-_/]+$/, message: 'Đường dẫn phải bắt đầu bằng dấu gạch chéo (/), ví dụ: /profile' }
+              { required: true, message: 'Vui lòng nhập đường dẫn Router!' }
             ]}
           >
             <Input
-              placeholder="Ví dụ: /profile hoặc /address-book"
+              placeholder="Ví dụ: /profile hoặc https://booking.example.com"
               style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
             />
           </Form.Item>
@@ -337,6 +380,97 @@ export default function CategoryTab({ currentUser }) {
                 style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none' }}
               >
                 Khai báo
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Modal Edit Child App */}
+      <Modal
+        title={
+          <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>
+            Chỉnh sửa Mini App con "{editingChildApp?.name}"
+          </span>
+        }
+        open={isEditModalOpen}
+        onCancel={() => setIsEditModalOpen(false)}
+        footer={null}
+        destroyOnClose
+        style={{ top: 80 }}
+        bodyStyle={{ padding: '20px 0' }}
+        wrapClassName="dark-modal"
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={handleEditChildAppSubmit}
+          requiredMark={false}
+        >
+          <Form.Item
+            name="name"
+            label={<span style={{ color: '#e2e8f0' }}>Tên Mini App con</span>}
+            rules={[{ required: true, message: 'Vui lòng nhập tên App con!' }]}
+          >
+            <Input
+              placeholder="Ví dụ: HomeBooking Mini App"
+              style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="url"
+            label={<span style={{ color: '#e2e8f0' }}>Đường dẫn Router / URL</span>}
+            rules={[{ required: true, message: 'Vui lòng nhập URL!' }]}
+          >
+            <Input
+              placeholder="Ví dụ: https://homebooking.example.com"
+              style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="short_description"
+            label={<span style={{ color: '#e2e8f0' }}>Mô tả ngắn</span>}
+          >
+            <Input
+              placeholder="Mô tả ngắn..."
+              style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="version"
+            label={<span style={{ color: '#e2e8f0' }}>Phiên bản</span>}
+          >
+            <Input
+              placeholder="1.0.0"
+              style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="icon_url"
+            label={<span style={{ color: '#e2e8f0' }}>Link Icon</span>}
+          >
+            <Input
+              placeholder="https://..."
+              style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 0, marginTop: '24px', textAlign: 'right' }}>
+            <Space>
+              <Button onClick={() => setIsEditModalOpen(false)} style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none' }}>
+                Hủy bỏ
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submitting}
+                style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none' }}
+              >
+                Cập nhật
               </Button>
             </Space>
           </Form.Item>

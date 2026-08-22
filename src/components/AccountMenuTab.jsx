@@ -4,6 +4,8 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PhoneOutlin
 import { api } from '../services/api';
 
 const CATEGORY_LABELS = {
+  "M_ACC_T_ACCOUNT_GROUP": "TÀI KHOẢN",
+  "M_ACC_T_SP_GROUP": "HỖ TRỢ",
   "TÀI KHOẢN": "TÀI KHOẢN",
   "HỖ TRỢ": "HỖ TRỢ",
   "hb-vw-mn-ac-group-account": "TÀI KHOẢN",
@@ -233,8 +235,8 @@ export default function AccountMenuTab({ currentUser }) {
   };
 
   const groupsToRender = groupedMenus && groupedMenus.length > 0 ? groupedMenus : [
-    { category: "TÀI KHOẢN", items: [] },
-    { category: "HỖ TRỢ", items: [] }
+    { category: "M_ACC_T_ACCOUNT_GROUP", items: [] },
+    { category: "M_ACC_T_SP_GROUP", items: [] }
   ];
 
   return (
