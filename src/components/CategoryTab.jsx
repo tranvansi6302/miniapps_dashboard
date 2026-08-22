@@ -101,8 +101,7 @@ export default function CategoryTab({ currentUser }) {
         file_checksum: parentApp.file_checksum || '',
         policy: parentApp.policy || {},
         is_hidden: false,
-        is_actived: true,
-        parent_id: parentApp.id
+        is_actived: true
       };
 
       await api.post('/mini-apps', payload);
@@ -256,18 +255,6 @@ export default function CategoryTab({ currentUser }) {
         }
         extra={
           <Space>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => navigate('/mini-apps/new')}
-              style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                border: 'none',
-                fontWeight: 600
-              }}
-            >
-              + Khai báo Mini App Cha mới
-            </Button>
             <Button
               type="primary"
               icon={<ReloadOutlined />}
