@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://miniapps-api-2zb0.onrender.com/api';
+export const API_BASE_URL = 'https://miniappsapi-production.up.railway.app/api';
 // const API_BASE_URL = 'http://localhost:3000/api';
 
 // Helper to get authentication data from localStorage
