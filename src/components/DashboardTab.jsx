@@ -166,15 +166,10 @@ export default function DashboardTab() {
           </p>
         </div>
         <Button
-          type="text"
+          type="primary"
           icon={<SyncOutlined />}
           onClick={fetchStats}
-          style={{
-            color: '#a5b4fc',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.05)',
-            borderRadius: '5px'
-          }}
+          className="btn-purple-secondary"
         >
           Làm mới
         </Button>

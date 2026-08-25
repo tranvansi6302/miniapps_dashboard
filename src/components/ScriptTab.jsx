@@ -371,22 +371,17 @@ export default function ScriptTab({ currentUser, forceFormView = false }) {
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={handleCreateClick}
-                    style={{
-                      background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                      border: 'none',
-                      fontWeight: 600,
-                      boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
-                    }}
+                    className="btn-purple-primary"
                   >
                     Tạo Phiên Bản Mới
                   </Button>
                 )}
                 <Button
-                  type="default"
+                  type="primary"
                   icon={<ReloadOutlined />}
                   onClick={fetchActiveAndHistory}
                   loading={loading}
-                  style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.1)' }}
+                  className="btn-purple-secondary"
                 >
                   Làm mới
                 </Button>

@@ -1909,7 +1909,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                           <Button
                             icon={<UploadOutlined />}
                             loading={uploadingZip}
-                            style={{ width: '100%', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }}
+                            className="btn-purple-secondary"
+                            style={{ width: '100%' }}
                           >
                             {uploadingZip ? 'Tải...' : 'Chọn .zip'}
                           </Button>
@@ -2070,7 +2071,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                           onClick={() => handleBulkUpdateMemberRole(r.code)}
                           loading={memberBulkActionLoading}
                           disabled={!canEdit}
-                          style={{ background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', color: '#a5b4fc', fontSize: '11px', borderRadius: '4px' }}
+                          className="btn-purple-secondary"
+                          style={{ fontSize: '11px', borderRadius: '4px' }}
                         >
                           {r.name}
                         </Button>
@@ -2365,12 +2367,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   type="primary"
                   icon={<PlusOutlined />}
                   onClick={handleCreateClick}
-                  style={{
-                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                    border: 'none',
-                    fontWeight: 600,
-                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
-                  }}
+                  className="btn-purple-primary"
                 >
                   Tạo Mini App
                 </Button>
@@ -2380,7 +2377,7 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 icon={<ReloadOutlined />}
                 onClick={fetchApps}
                 loading={loading}
-                style={{ background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }}
+                className="btn-purple-secondary"
               >
                 Tải lại
               </Button>
@@ -2833,7 +2830,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                       size="small"
                       onClick={() => handleBulkUpdateMemberRole(r.code)}
                       loading={memberBulkActionLoading}
-                      style={{ background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', color: '#a5b4fc', fontSize: '11px', borderRadius: '4px' }}
+                      className="btn-purple-secondary"
+                      style={{ fontSize: '11px', borderRadius: '4px' }}
                     >
                       {r.name}
                     </Button>

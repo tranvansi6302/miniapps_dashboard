@@ -838,12 +838,7 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
               type="primary" 
               icon={<PlusOutlined />} 
               onClick={() => navigate('/app-menus/new')}
-              style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                border: 'none',
-                fontWeight: 600,
-                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
-              }}
+              className="btn-purple-primary"
             >
               Thêm Menu
             </Button>
@@ -853,7 +848,7 @@ export default function AppMenuTab({ currentUser, forceFormView = false }) {
               icon={<ReloadOutlined />}
               onClick={fetchMenus}
               loading={loading}
-              style={{ background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }}
+              className="btn-purple-secondary"
             >
               Làm mới
             </Button>

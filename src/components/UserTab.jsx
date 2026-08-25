@@ -258,7 +258,7 @@ export default function UserTab({ currentUser }) {
             icon={<ReloadOutlined />}
             onClick={fetchUsers}
             loading={loading}
-            style={{ background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }}
+            className="btn-purple-secondary"
           >
             Làm mới
           </Button>
