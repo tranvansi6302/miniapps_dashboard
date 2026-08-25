@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Card, Space, Select, Input, Modal, Badge, Tooltip, message, Row, Col } from 'antd';
 import { SearchOutlined, ReloadOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
-import { api, getAuthData, API_BASE_URL } from '../services/api';
+import { api, getAuthData, getApiBaseUrl } from '../services/api';
 
 const ACTION_LABELS = {
   'APPROVE_BUILD': { text: 'Duyệt bản build', color: 'success' },
@@ -87,7 +87,8 @@ export default function ModerationLogTab() {
     try {
       message.loading({ content: 'Đang chuẩn bị dữ liệu xuất...', key: 'exportLogs' });
       const { accessToken } = getAuthData();
-      const response = await fetch(`${API_BASE_URL}/moderation-logs/export`, {
+      const baseUrl = getApiBaseUrl();
+      const response = await fetch(`${baseUrl}/moderation-logs/export`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }

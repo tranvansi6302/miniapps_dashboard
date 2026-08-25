@@ -1,5 +1,67 @@
-export const API_BASE_URL = 'https://miniappsapi-production.up.railway.app/api';
-// const API_BASE_URL = 'http://localhost:3000/api';
+/**
+ * @file api.js
+ * @description API Client Service supporting dynamic project environments (365Trade & HomeBooking).
+ * Handles authentication token storage, request interception, dynamic base URL switching, and automatic JWT refresh.
+ */
+
+import logo365Trade from '../assets/logo-365trade-dev.webp';
+import logoHomeBooking from '../assets/logo-homebooking-dev.webp';
+
+// Available Project Environments
+export const PROJECTS = [
+  {
+    id: '365trade',
+    name: '365Trade',
+    badge: '365Trade Global',
+    logo: logo365Trade,
+    baseUrl: 'https://365trademiniappapidev-production.up.railway.app/api',
+    description: 'Project 365Trade SuperApp & Mini Apps API'
+  },
+  {
+    id: 'homebooking',
+    name: 'HomeBooking',
+    badge: 'HomeBooking Global',
+    logo: logoHomeBooking,
+    baseUrl: 'https://homebookingminiappapidev-production.up.railway.app/api',
+    description: 'Project HomeBooking SuperApp & Mini Apps API'
+  }
+];
+
+const DEFAULT_PROJECT_ID = '365trade';
+
+/**
+ * Gets the currently selected project environment configuration.
+ * @returns {Object} Selected project object
+ */
+export const getSelectedProject = () => {
+  const savedId = localStorage.getItem('selectedProjectId') || DEFAULT_PROJECT_ID;
+  const project = PROJECTS.find(p => p.id === savedId);
+  return project || PROJECTS[0];
+};
+
+/**
+ * Sets the active project environment and clears authentication state.
+ * @param {string} projectId - Project identifier ('365trade' | 'homebooking')
+ */
+export const setSelectedProject = (projectId) => {
+  const target = PROJECTS.find(p => p.id === projectId);
+  if (target) {
+    localStorage.setItem('selectedProjectId', target.id);
+    clearAuthData();
+    window.dispatchEvent(new CustomEvent('project-changed', { detail: target }));
+  }
+};
+
+/**
+ * Returns the active API Base URL.
+ * @returns {string} Base URL string
+ */
+export const getApiBaseUrl = () => {
+  return getSelectedProject().baseUrl;
+};
+
+// Deprecated constant alias for backwards compatibility
+export const API_BASE_URL = getApiBaseUrl();
 
 // Helper to get authentication data from localStorage
 export const getAuthData = () => {
@@ -44,9 +106,12 @@ const onRefreshFailed = (err) => {
   refreshSubscribers = [];
 };
 
-// Core fetch wrapper
+/**
+ * Core fetch wrapper with dynamic project endpoint routing & automatic token refresh.
+ */
 async function customFetch(endpoint, options = {}) {
   const { accessToken } = getAuthData();
+  const baseUrl = getApiBaseUrl();
 
   // Prepare headers
   const headers = {
@@ -66,15 +131,16 @@ async function customFetch(endpoint, options = {}) {
     headers,
   };
 
-  // Build full URL
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+  // Build full URL using current active project base URL
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
 
   let response = await fetch(url, config);
 
-  // If response is 401 (Unauthorized) or 403 (Forbidden), we attempt token refresh
-  if ((response.status === 401 || response.status === 403) && !options._retry) {
+  // If response is 401 or 403 on normal protected routes (NOT auth endpoints), attempt token refresh
+  const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register');
+
+  if ((response.status === 401 || response.status === 403) && !options._retry && !isAuthEndpoint) {
     if (isRefreshing) {
-      // If we are already refreshing, wait for it to complete
       return new Promise((resolve, reject) => {
         subscribeTokenRefresh((newToken, err) => {
           if (err) {
@@ -93,10 +159,10 @@ async function customFetch(endpoint, options = {}) {
     try {
       const { refreshToken } = getAuthData();
       if (!refreshToken) {
-        throw new Error('No refresh token available');
+        throw new Error('Phiên làm việc hết hạn');
       }
 
-      const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      const refreshResponse = await fetch(`${baseUrl}/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +171,7 @@ async function customFetch(endpoint, options = {}) {
       });
 
       if (!refreshResponse.ok) {
-        throw new Error('Refresh token expired');
+        throw new Error('Phiên làm việc hết hạn');
       }
 
       const refreshDataOuter = await refreshResponse.json();
@@ -125,7 +191,6 @@ async function customFetch(endpoint, options = {}) {
       isRefreshing = false;
       onRefreshFailed(err);
       clearAuthData();
-      // Dispatch a custom event to notify components to log out
       window.dispatchEvent(new Event('auth-failed'));
       throw err;
     }
@@ -134,13 +199,13 @@ async function customFetch(endpoint, options = {}) {
   return response;
 }
 
-// API Methods
+// API Export Methods
 export const api = {
   get: async (endpoint, options = {}) => {
     const res = await customFetch(endpoint, { ...options, method: 'GET' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.message || 'GET Request Failed');
+      throw new Error(data.message || 'Lấy dữ liệu thất bại');
     }
     return res.json();
   },
@@ -153,7 +218,7 @@ export const api = {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.message || 'POST Request Failed');
+      throw new Error(data.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
     }
     return res.json();
   },
@@ -166,7 +231,7 @@ export const api = {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.message || 'PUT Request Failed');
+      throw new Error(data.message || 'Cập nhật thất bại');
     }
     return res.json();
   },
@@ -179,7 +244,7 @@ export const api = {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.message || 'DELETE Request Failed');
+      throw new Error(data.message || 'Xóa thất bại');
     }
     return res.json();
   },

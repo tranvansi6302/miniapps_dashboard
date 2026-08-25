@@ -22,7 +22,72 @@ body {
   width: 100%;
 }
 
-/* Custom Table Styles for Glassmorphism Look */
+/* Standard Ant Design Buttons (Restored Original Compact Height) */
+.ant-btn {
+  height: 30px !important;
+  line-height: 28px !important;
+  font-size: 12px !important;
+  border-radius: 6px !important;
+  padding: 0 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.ant-btn-sm {
+  height: 26px !important;
+  line-height: 24px !important;
+  font-size: 11px !important;
+  padding: 0 8px !important;
+}
+
+/* Primary Button Global Neutral Accent Color (#6366f1) */
+.ant-btn-primary {
+  background-color: #6366f1 !important;
+  border-color: #6366f1 !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.ant-btn-primary:hover, .ant-btn-primary:focus {
+  background-color: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4) !important;
+}
+
+/* Distinct Config Group Action Button Color (Violet #8b5cf6) */
+.config-group-btn {
+  background-color: #8b5cf6 !important;
+  border-color: #8b5cf6 !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3) !important;
+}
+
+.config-group-btn:hover, .config-group-btn:focus {
+  background-color: #7c3aed !important;
+  border-color: #7c3aed !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.45) !important;
+}
+
+/* Default & Text Button Overrides */
+.ant-btn-default {
+  border-radius: 6px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #cbd5e1 !important;
+}
+
+.ant-btn-default:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Custom Table Styles */
 .custom-table .ant-table {
   background: transparent !important;
 }
@@ -30,13 +95,16 @@ body {
 .custom-table .ant-table-thead > tr > th {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   font-weight: 600 !important;
-  padding: 6px 10px !important; /* Extremely Compact header padding */
-  font-size: 13px !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .custom-table .ant-table-tbody > tr > td {
   border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-  padding: 6px 10px !important; /* Extremely Compact cell padding */
+  padding: 8px 12px !important;
   font-size: 13px !important;
 }
 
@@ -46,10 +114,10 @@ body {
 
 /* Dark Modal & Drawer custom stylings */
 .dark-modal .ant-modal-content {
-  background: rgba(30, 41, 59, 0.8) !important;
+  background: rgba(30, 41, 59, 0.85) !important;
   backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 5px !important;
+  border-radius: 8px !important;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
 }
 
@@ -67,29 +135,71 @@ body {
   color: #fff !important;
 }
 
-/* Form Styles */
+/* Form Styles & Input Height 38px with Perfect Vertical Centering */
 .ant-form-item {
-  margin-bottom: 12px !important; /* Tighter vertical gap between inputs globally */
+  margin-bottom: 14px !important;
 }
 
 .ant-form-item-row .ant-form-item-label {
-  padding-bottom: 4px !important; /* Bring labels closer to inputs */
+  padding-bottom: 4px !important;
 }
 
 .ant-form-item-label > label {
   font-weight: 500 !important;
+  font-size: 12px !important;
+  color: #cbd5e1 !important;
 }
 
-.ant-input, .ant-input-password, .ant-select-selector {
+/* Input Fields Height = 38px & Vertical Alignment */
+.ant-input,
+.ant-input-password,
+.ant-select-selector,
+.ant-input-affix-wrapper {
+  height: 38px !important;
+  min-height: 38px !important;
+  border-radius: 6px !important;
+  display: flex !important;
+  align-items: center !important;
   transition: all 0.2s ease !important;
 }
 
-.ant-input:focus, .ant-input-focused, .ant-input-password:focus, .ant-input-password-focused {
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+.ant-input-affix-wrapper input.ant-input {
+  height: 100% !important;
+  min-height: 100% !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
-/* Custom Scrollbar for Code Textarea and Scrollable Containers */
+.ant-select-single .ant-select-selector {
+  height: 38px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 11px !important;
+}
+
+.ant-select-single .ant-select-selector .ant-select-selection-search {
+  display: flex !important;
+  align-items: center !important;
+}
+
+.ant-select-single .ant-select-selector .ant-select-selection-item,
+.ant-select-single .ant-select-selector .ant-select-selection-placeholder {
+  line-height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.ant-input:focus, 
+.ant-input-focused, 
+.ant-input-password:focus, 
+.ant-input-password-focused, 
+.ant-select-focused .ant-select-selector {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25) !important;
+}
+
+/* Custom Scrollbar */
 textarea::-webkit-scrollbar,
 div::-webkit-scrollbar {
   width: 6px;
@@ -112,12 +222,12 @@ div::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.22);
 }
 
-
-/* Menu transitions */
+/* Sidebar Menu Selected State */
 .custom-menu .ant-menu-item-selected {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(79, 70, 229, 0.25) 100%) !important;
+  background: rgba(99, 102, 241, 0.18) !important;
   color: #a5b4fc !important;
   border-right: 3px solid #6366f1 !important;
+  font-weight: 600 !important;
 }
 
 /* Workspace Navigation Hover Styles */
@@ -128,17 +238,21 @@ div::-webkit-scrollbar-thumb:hover {
   opacity: 0.85;
 }
 .workspace-link:hover .workspace-link-name {
-  color: #818cf8 !important;
+  color: #a5b4fc !important;
   text-decoration: underline;
 }
 
-/* Premium Auth Inputs */
+/* Premium Auth Inputs (38px Height & Vertical Alignment) */
 .auth-input {
   background: rgba(15, 23, 42, 0.6) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: #fff !important;
-  border-radius: 5px !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border-radius: 6px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  display: flex !important;
+  align-items: center !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .auth-input:hover {
@@ -153,32 +267,33 @@ div::-webkit-scrollbar-thumb:hover {
   background: rgba(15, 23, 42, 0.8) !important;
 }
 
-/* Premium Auth Action Buttons */
-.auth-btn {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+/* Premium Auth & Modal Confirmation Action Buttons Specifically set to 38px Height */
+.auth-btn,
+.submit-btn-38 {
+  background: #6366f1 !important;
   border: none !important;
-  height: 45px !important;
-  border-radius: 5px !important;
+  height: 38px !important;
+  line-height: 38px !important;
+  border-radius: 6px !important;
   font-weight: 600 !important;
   box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   color: #fff !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
 
-.auth-btn:hover {
-  transform: translateY(-2px);
+.auth-btn:hover,
+.submit-btn-38:hover {
+  background: #4f46e5 !important;
   box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45) !important;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
-  filter: brightness(1.1);
   color: #fff !important;
 }
 
-.auth-btn:active {
+.auth-btn:active,
+.submit-btn-38:active {
   transform: translateY(0);
-  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3) !important;
 }
 
 /* Back Button Workspace Hover */
@@ -190,5 +305,3 @@ div::-webkit-scrollbar-thumb:hover {
   color: #fff !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
-
-

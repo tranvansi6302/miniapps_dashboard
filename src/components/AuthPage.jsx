@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
-import { Card, Form, Input, Button, Tabs, message } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, IdcardOutlined } from '@ant-design/icons';
-import { api, setAuthData } from '../services/api';
+import { Card, Form, Input, Button, Tabs, Segmented, Tag, message } from 'antd';
+import { UserOutlined, LockOutlined, MailOutlined, IdcardOutlined, GlobalOutlined, CodeOutlined } from '@ant-design/icons';
+import { api, setAuthData, PROJECTS, getSelectedProject, setSelectedProject } from '../services/api';
 
 export default function AuthPage({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
+  const [currentProject, setCurrentProjectState] = useState(getSelectedProject());
+
+  const handleProjectSwitch = (projectId) => {
+    setSelectedProject(projectId);
+    const updated = getSelectedProject();
+    setCurrentProjectState(updated);
+    message.info(`Đã chuyển sang môi trường dự án: ${updated.name}`);
+  };
 
   const onLogin = async (values) => {
     setLoading(true);
@@ -14,12 +22,12 @@ export default function AuthPage({ onLoginSuccess }) {
         username: values.username,
         password: values.password,
       });
-      message.success('Đăng nhập thành công!');
+      message.success(`Đăng nhập thành công vào dự án ${currentProject.name}!`);
       const loginPayload = res.data;
       setAuthData(loginPayload.user, loginPayload.accessToken, loginPayload.refreshToken);
       onLoginSuccess(loginPayload.user);
     } catch (err) {
-      message.error(err.message || 'Đăng nhập thất bại. Vui lòng thử lại!');
+      message.error(err.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
     } finally {
       setLoading(false);
     }
@@ -28,7 +36,7 @@ export default function AuthPage({ onLoginSuccess }) {
   const onRegister = async (values) => {
     setLoading(true);
     try {
-      const data = await api.post('/auth/register', {
+      await api.post('/auth/register', {
         username: values.username,
         password: values.password,
         email: values.email,
@@ -46,12 +54,14 @@ export default function AuthPage({ onLoginSuccess }) {
   return (
     <div style={{
       display: 'flex',
+      flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
       padding: '20px',
-      fontFamily: 'Inter, sans-serif'
+      fontFamily: 'Inter, sans-serif',
+      position: 'relative'
     }}>
       <div style={{
         position: 'absolute',
@@ -72,24 +82,48 @@ export default function AuthPage({ onLoginSuccess }) {
         zIndex: 0
       }} />
 
+      {/* Main Card Container */}
       <Card 
         bordered={false}
         style={{
           width: '100%',
-          maxWidth: '440px',
+          maxWidth: '460px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
-          borderRadius: '5px',
-          background: 'rgba(30, 41, 59, 0.75)',
+          borderRadius: '12px',
+          background: 'rgba(30, 41, 59, 0.85)',
           backdropFilter: 'blur(20px)',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           zIndex: 1
         }}
-        bodyStyle={{ padding: '40px 32px' }}
+        bodyStyle={{ padding: '36px 32px' }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+        {/* Dynamic Project Logo Header */}
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <div style={{ marginBottom: '12px' }}>
+            <img
+              src={currentProject.logo}
+              alt={currentProject.name}
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '12px',
+                objectFit: 'contain',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                transition: 'all 0.3s ease'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '8px' }}>
+            <Tag color="purple" style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px' }}>
+              <CodeOutlined style={{ marginRight: '4px' }} /> Môi trường DEV - Phục vụ phát triển
+            </Tag>
+          </div>
+
           <h1 style={{ 
             color: '#fff', 
-            fontSize: '28px', 
+            fontSize: '26px', 
             fontWeight: 800, 
             margin: 0,
             letterSpacing: '-0.5px',
@@ -99,9 +133,50 @@ export default function AuthPage({ onLoginSuccess }) {
           }}>
             MiniApp Portal
           </h1>
-          <p style={{ color: '#94a3b8', marginTop: '8px', fontSize: '14px' }}>
-            Hệ thống Quản trị Mini Apps & SDK Bridge
+          <p style={{ color: '#94a3b8', marginTop: '6px', fontSize: '13px' }}>
+            Hệ thống Quản trị Mini Apps & SDK Bridge (DEV)
           </p>
+        </div>
+
+        {/* Dynamic Project Environment Switcher */}
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.6)',
+          borderRadius: '8px',
+          padding: '12px',
+          marginBottom: '24px',
+          border: '1px solid rgba(255, 255, 255, 0.06)'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '10px'
+          }}>
+            <span style={{ color: '#cbd5e1', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <GlobalOutlined style={{ color: '#6366f1' }} /> Chọn Dự án Quản trị:
+            </span>
+            <Tag color="blue" style={{ margin: 0, fontSize: '11px', fontWeight: 600 }}>
+              {currentProject.name} MiniApp
+            </Tag>
+          </div>
+
+          <Segmented
+            block
+            value={currentProject.id}
+            onChange={handleProjectSwitch}
+            options={PROJECTS.map(p => ({
+              label: (
+                <div style={{ padding: '4px 0', fontSize: '13px', fontWeight: 600 }}>
+                  {p.name}
+                </div>
+              ),
+              value: p.id
+            }))}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              padding: '3px'
+            }}
+          />
         </div>
 
         <Tabs 
@@ -126,6 +201,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}
                   >
                     <Input 
+                      prefix={<UserOutlined style={{ color: '#64748b' }} />}
                       placeholder="Tên đăng nhập" 
                       size="large"
                       className="auth-input"
@@ -137,22 +213,28 @@ export default function AuthPage({ onLoginSuccess }) {
                     rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
                   >
                     <Input.Password
+                      prefix={<LockOutlined style={{ color: '#64748b' }} />}
                       placeholder="Mật khẩu"
                       size="large"
                       className="auth-input"
                     />
                   </Form.Item>
 
-                  <Form.Item style={{ marginTop: '30px' }}>
+                  <Form.Item style={{ marginTop: '24px', marginBottom: 0 }}>
                     <Button 
                       type="primary" 
                       htmlType="submit" 
                       block 
                       size="large"
                       loading={loading}
-                      className="auth-btn"
+                      style={{
+                        background: '#6366f1',
+                        border: 'none',
+                        height: '38px',
+                        fontWeight: 600
+                      }}
                     >
-                      Đăng nhập
+                      Đăng nhập {currentProject.name}
                     </Button>
                   </Form.Item>
                 </Form>
@@ -176,6 +258,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     ]}
                   >
                     <Input 
+                      prefix={<UserOutlined style={{ color: '#64748b' }} />}
                       placeholder="Tên đăng nhập" 
                       size="large"
                       className="auth-input"
@@ -190,6 +273,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     ]}
                   >
                     <Input 
+                      prefix={<MailOutlined style={{ color: '#64748b' }} />}
                       placeholder="Email" 
                       size="large"
                       className="auth-input"
@@ -201,6 +285,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     rules={[{ required: true, message: 'Vui lòng nhập họ tên!' }]}
                   >
                     <Input 
+                      prefix={<IdcardOutlined style={{ color: '#64748b' }} />}
                       placeholder="Họ và tên" 
                       size="large"
                       className="auth-input"
@@ -215,22 +300,28 @@ export default function AuthPage({ onLoginSuccess }) {
                     ]}
                   >
                     <Input.Password
+                      prefix={<LockOutlined style={{ color: '#64748b' }} />}
                       placeholder="Mật khẩu"
                       size="large"
                       className="auth-input"
                     />
                   </Form.Item>
 
-                  <Form.Item style={{ marginTop: '30px' }}>
+                  <Form.Item style={{ marginTop: '24px', marginBottom: 0 }}>
                     <Button 
                       type="primary" 
                       htmlType="submit" 
                       block 
                       size="large"
                       loading={loading}
-                      className="auth-btn"
+                      style={{
+                        background: '#6366f1',
+                        border: 'none',
+                        height: '38px',
+                        fontWeight: 600
+                      }}
                     >
-                      Đăng ký tài khoản
+                      Đăng ký tài khoản {currentProject.name}
                     </Button>
                   </Form.Item>
                 </Form>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Statistic, Badge, Table, Button, Spin, Tag, Tooltip, Empty } from 'antd';
-import { 
-  AppstoreOutlined, 
-  TagsOutlined, 
-  TeamOutlined, 
-  CheckCircleOutlined, 
-  ClockCircleOutlined, 
+import {
+  AppstoreOutlined,
+  TagsOutlined,
+  TeamOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
   SyncOutlined,
   BranchesOutlined
 } from '@ant-design/icons';
@@ -165,15 +165,15 @@ export default function DashboardTab() {
             Báo cáo thống kê quy mô & hoạt động của Mini App Center
           </p>
         </div>
-        <Button 
-          type="text" 
-          icon={<SyncOutlined />} 
+        <Button
+          type="text"
+          icon={<SyncOutlined />}
           onClick={fetchStats}
-          style={{ 
-            color: '#a5b4fc', 
-            background: 'rgba(255,255,255,0.03)', 
+          style={{
+            color: '#a5b4fc',
+            background: 'rgba(255,255,255,0.03)',
             border: '1px solid rgba(255,255,255,0.05)',
-            borderRadius: '5px' 
+            borderRadius: '5px'
           }}
         >
           Làm mới
@@ -183,17 +183,17 @@ export default function DashboardTab() {
       {/* KPI Cards Grid */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card 
+          <Card
             bordered={false}
-            style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
+            style={{
+              background: 'rgba(30, 41, 59, 0.45)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: '8px'
             }}
           >
             <Statistic
-              title={<span style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 500 }}>Tổng ứng dụng</span>}
+              title={<span style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 500 }}>Tổng MiniApp</span>}
               value={kpis.totalApps}
               valueStyle={{ color: '#fff', fontWeight: 700, fontSize: '24px' }}
               prefix={<AppstoreOutlined style={{ color: '#6366f1', marginRight: '8px' }} />}
@@ -201,10 +201,10 @@ export default function DashboardTab() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card 
+          <Card
             bordered={false}
-            style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
+            style={{
+              background: 'rgba(30, 41, 59, 0.45)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: '8px'
@@ -219,10 +219,10 @@ export default function DashboardTab() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card 
+          <Card
             bordered={false}
-            style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
+            style={{
+              background: 'rgba(30, 41, 59, 0.45)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: '8px',
@@ -241,10 +241,10 @@ export default function DashboardTab() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card 
+          <Card
             bordered={false}
-            style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
+            style={{
+              background: 'rgba(30, 41, 59, 0.45)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: '8px'
@@ -267,8 +267,8 @@ export default function DashboardTab() {
           <Card
             title={<span style={{ color: '#fff', fontWeight: 650, fontSize: '14px' }}>Phân bố ứng dụng theo Danh mục</span>}
             bordered={false}
-            style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
+            style={{
+              background: 'rgba(30, 41, 59, 0.45)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: '8px',
@@ -290,8 +290,8 @@ export default function DashboardTab() {
           <Card
             title={<span style={{ color: '#fff', fontWeight: 650, fontSize: '14px' }}>Tỷ lệ Trạng thái duyệt bản Build</span>}
             bordered={false}
-            style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
+            style={{
+              background: 'rgba(30, 41, 59, 0.45)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: '8px',
@@ -313,8 +313,8 @@ export default function DashboardTab() {
           <Card
             title={<span style={{ color: '#fff', fontWeight: 650, fontSize: '14px' }}>Yêu cầu quyền truy cập nhiều nhất</span>}
             bordered={false}
-            style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
+            style={{
+              background: 'rgba(30, 41, 59, 0.45)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: '8px',
@@ -339,8 +339,8 @@ export default function DashboardTab() {
           <Card
             title={<span style={{ color: '#fff', fontWeight: 650, fontSize: '14px' }}>Lịch sử cập nhật phiên bản gần đây</span>}
             bordered={false}
-            style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
+            style={{
+              background: 'rgba(30, 41, 59, 0.45)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: '8px'
@@ -391,8 +391,8 @@ export default function DashboardTab() {
           <Card
             title={<span style={{ color: '#fff', fontWeight: 650, fontSize: '14px' }}>Ứng dụng mới tham gia</span>}
             bordered={false}
-            style={{ 
-              background: 'rgba(30, 41, 59, 0.45)', 
+            style={{
+              background: 'rgba(30, 41, 59, 0.45)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
               borderRadius: '8px',
@@ -405,11 +405,11 @@ export default function DashboardTab() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {recentApps.map((app) => (
-                  <div 
-                    key={app.id} 
-                    style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
+                  <div
+                    key={app.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       paddingBottom: '12px',
                       borderBottom: '1px solid rgba(255,255,255,0.03)'

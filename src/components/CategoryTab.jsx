@@ -192,12 +192,7 @@ export default function CategoryTab({ currentUser }) {
               type="primary"
               icon={<SettingOutlined />}
               onClick={() => handleManageGroup(record)}
-              style={{
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                border: 'none',
-                fontWeight: 600,
-                borderRadius: '4px'
-              }}
+              className="config-group-btn"
             >
               Cấu hình Nhóm
             </Button>
