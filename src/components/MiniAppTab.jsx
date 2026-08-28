@@ -491,69 +491,89 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
         const isPending = record.status === 1;
         const isApproved = record.status === 2;
         const isActive = record.version === editingApp?.version;
+
+        const menuItems = [
+          {
+            key: 'detail',
+            label: 'Xem chi tiết',
+            icon: <InfoCircleOutlined style={{ color: '#38bdf8' }} />,
+            onClick: () => handleOpenBuildDetail(record),
+          },
+        ];
+
+        if (isPending && canEdit) {
+          menuItems.push(
+            {
+              key: 'approve',
+              label: 'Duyệt bản build',
+              icon: <CheckCircleOutlined style={{ color: '#10b981' }} />,
+              onClick: () => {
+                setReviewAction(2);
+                setReviewBuildRecord(record);
+                checklistForm.resetFields();
+                setChecklistModalOpen(true);
+              },
+            },
+            {
+              key: 'reject',
+              label: 'Từ chối bản build',
+              icon: <CloseOutlined style={{ color: '#f87171' }} />,
+              danger: true,
+              onClick: () => {
+                setReviewAction(3);
+                setReviewBuildRecord(record);
+                checklistForm.resetFields();
+                setChecklistModalOpen(true);
+              },
+            }
+          );
+        }
+
+        if (isApproved) {
+          if (isActive) {
+            menuItems.push({
+              key: 'active',
+              label: 'Đang hoạt động',
+              icon: <CheckOutlined style={{ color: '#4ade80' }} />,
+              disabled: true,
+            });
+          } else if (canEdit) {
+            menuItems.push({
+              key: 'rollback',
+              label: 'Rollback về phiên bản này',
+              icon: <ReloadOutlined style={{ color: '#6366f1' }} />,
+              onClick: () => {
+                Modal.confirm({
+                  title: 'Xác nhận khôi phục (Rollback) về phiên bản này?',
+                  content: `Hệ thống sẽ chuyển phiên bản hoạt động hiện tại về v${record.version}.`,
+                  okText: 'Xác nhận',
+                  cancelText: 'Hủy',
+                  onOk: () => handleUpdateBuildStatus(record.id, 2),
+                });
+              },
+            });
+          }
+        }
+
+        if (record.status === 3) {
+          menuItems.push({
+            key: 'rejected',
+            label: 'Đã từ chối',
+            disabled: true,
+          });
+        }
+
         return (
-          <Space size="middle">
-            <Button 
-              type="link" 
-              size="small" 
-              onClick={() => handleOpenBuildDetail(record)}
-              style={{ padding: 0, color: '#38bdf8' }}
-            >
-              Xem chi tiết
-            </Button>
-            {isPending && canEdit && (
-              <Button 
-                type="primary" 
-                size="small" 
-                style={{ background: '#10b981', border: 'none', borderRadius: '4px' }}
-                onClick={() => {
-                  setReviewAction(2);
-                  setReviewBuildRecord(record);
-                  checklistForm.resetFields();
-                  setChecklistModalOpen(true);
-                }}
-              >
-                Duyệt
-              </Button>
-            )}
-            {isPending && canEdit && (
-              <Button 
-                danger 
-                type="primary" 
-                size="small" 
-                style={{ borderRadius: '4px' }}
-                onClick={() => {
-                  setReviewAction(3);
-                  setReviewBuildRecord(record);
-                  checklistForm.resetFields();
-                  setChecklistModalOpen(true);
-                }}
-              >
-                Từ chối
-              </Button>
-            )}
-            {isApproved && (
-              isActive ? (
-                <Tag color="success" style={{ margin: 0 }}>Đang hoạt động</Tag>
-              ) : canEdit ? (
-                <Popconfirm
-                  title="Xác nhận khôi phục (Rollback) về phiên bản này?"
-                  description={`Hệ thống sẽ chuyển phiên bản hoạt động hiện tại về v${record.version}.`}
-                  onConfirm={() => handleUpdateBuildStatus(record.id, 2)}
-                  okText="Xác nhận"
-                  cancelText="Hủy"
-                >
-                  <Button type="primary" size="small" style={{ background: '#6366f1', border: 'none', borderRadius: '4px' }}>
-                    Rollback
-                  </Button>
-                </Popconfirm>
-              ) : (
-                <span style={{ color: '#64748b', fontSize: '12px' }}>Không có thao tác</span>
-              )
-            )}
-            {record.status === 3 && (
-              <span style={{ color: '#ef4444', fontSize: '12px' }}>Đã từ chối</span>
-            )}
+          <Space>
+            {isActive && <Tag color="success" style={{ margin: 0 }}>Đang hoạt động</Tag>}
+            <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+              <Button
+                type="text"
+                size="small"
+                icon={<MoreOutlined style={{ fontSize: '18px', color: '#94a3b8' }} />}
+                style={{ borderRadius: '6px' }}
+              />
+            </Dropdown>
           </Space>
         );
       },
