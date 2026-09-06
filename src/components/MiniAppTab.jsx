@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Card, Badge, Tooltip, Select, Switch, Row, Col, Drawer, Divider, message, Popconfirm, Tag, Collapse, Upload, Dropdown } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, ReloadOutlined, SearchOutlined, CheckCircleOutlined, StopOutlined, UserAddOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, MoreOutlined, CheckOutlined, CloseOutlined, ClockCircleOutlined, SafetyCertificateOutlined, FileZipOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined, ReloadOutlined, SearchOutlined, CheckCircleOutlined, StopOutlined, UserAddOutlined, ArrowLeftOutlined, UploadOutlined, DownloadOutlined, CopyOutlined, MoreOutlined, CheckOutlined, CloseOutlined, ClockCircleOutlined, SafetyCertificateOutlined, FileZipOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useNavigate, useParams, useLocation, useOutletContext } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, getApiBaseUrl } from '../services/api';
 
 const { Option } = Select;
 
@@ -49,6 +49,62 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [uploadingZip, setUploadingZip] = useState(false);
+  const [copyingBase64Url, setCopyingBase64Url] = useState(null);
+
+  const handleCopyZipBase64 = async (url, customName = 'gói ZIP') => {
+    if (!url) {
+      message.warning('Không có đường dẫn tệp ZIP!');
+      return;
+    }
+    setCopyingBase64Url(url);
+    const hideLoading = message.loading(`Đang tải và chuyển đổi ${customName} sang Base64...`, 0);
+    try {
+      const fetchUrl = url.startsWith('http') ? url : `${getApiBaseUrl().replace(/\/api$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+      const response = await fetch(fetchUrl);
+      if (!response.ok) {
+        throw new Error(`Tải tệp thất bại (${response.status} ${response.statusText})`);
+      }
+      const blob = await response.blob();
+      
+      const base64String = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const res = reader.result;
+          if (typeof res === 'string') {
+            const pureBase64 = res.includes(',') ? res.split(',')[1] : res;
+            resolve(pureBase64);
+          } else {
+            reject(new Error('Không thể đọc dữ liệu Base64'));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(base64String);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = base64String;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
+      const sizeKb = (blob.size / 1024).toFixed(1);
+      message.success(`Đã sao chép chuỗi Base64 của ${customName} (${sizeKb} KB, ${base64String.length.toLocaleString()} ký tự) vào bộ nhớ tạm!`);
+    } catch (err) {
+      console.error('Lỗi chuyển đổi Base64:', err);
+      message.error(`Chuyển đổi Base64 thất bại: ${err.message}`);
+    } finally {
+      hideLoading();
+      setCopyingBase64Url(null);
+    }
+  };
 
   const [checklistModalOpen, setChecklistModalOpen] = useState(false);
   const [reviewAction, setReviewAction] = useState(null); // 2: approve, 3: reject
@@ -446,16 +502,26 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
       title: 'Gói ZIP',
       dataIndex: 'file_path',
       key: 'file_path',
-      width: 100,
-      render: (filePath) => {
+      width: 110,
+      render: (filePath, record) => {
         return filePath ? (
-          <Tooltip title="Tải gói zip phiên bản này">
-            <Button
-              type="text"
-              icon={<DownloadOutlined style={{ color: '#eab308' }} />}
-              onClick={() => window.open(filePath, '_blank')}
-            />
-          </Tooltip>
+          <Space size={4}>
+            <Tooltip title="Tải gói zip phiên bản này">
+              <Button
+                type="text"
+                icon={<DownloadOutlined style={{ color: '#eab308' }} />}
+                onClick={() => window.open(filePath, '_blank')}
+              />
+            </Tooltip>
+            <Tooltip title="Chuyển sang Base64 và sao chép">
+              <Button
+                type="text"
+                icon={<CopyOutlined style={{ color: '#38bdf8' }} />}
+                loading={copyingBase64Url === filePath}
+                onClick={() => handleCopyZipBase64(filePath, `bản build v${record.version}`)}
+              />
+            </Tooltip>
+          </Space>
         ) : (
           <span style={{ color: '#64748b', fontSize: '12px' }}>Không có</span>
         );
@@ -611,14 +677,24 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           </Space>
         }
         extra={b?.file_path && (
-          <Button
-            type="primary"
-            icon={<DownloadOutlined />}
-            onClick={() => window.open(b.file_path, '_blank')}
-            style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a', fontWeight: 600 }}
-          >
-            Tải gói ZIP
-          </Button>
+          <Space>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={() => window.open(b.file_path, '_blank')}
+              style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a', fontWeight: 600 }}
+            >
+              Tải gói ZIP
+            </Button>
+            <Button
+              icon={<CopyOutlined />}
+              loading={copyingBase64Url === b.file_path}
+              onClick={() => handleCopyZipBase64(b.file_path, `bản build v${b.version}`)}
+              style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.4)', color: '#38bdf8', fontWeight: 600 }}
+            >
+              Copy Base64
+            </Button>
+          </Space>
         )}
         bordered={false}
         style={{
@@ -687,10 +763,21 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 <Col span={24}>
                   <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px' }}>Đường dẫn lưu trữ</div>
                   {b?.file_path ? (
-                    <a href={b.file_path} target="_blank" rel="noreferrer"
-                      style={{ color: '#a5b4fc', wordBreak: 'break-all', fontSize: '12px', lineHeight: 1.5 }}>
-                      {b.file_path}
-                    </a>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <a href={b.file_path} target="_blank" rel="noreferrer"
+                        style={{ color: '#a5b4fc', wordBreak: 'break-all', fontSize: '12px', lineHeight: 1.5, flex: 1 }}>
+                        {b.file_path}
+                      </a>
+                      <Button
+                        size="small"
+                        icon={<CopyOutlined />}
+                        loading={copyingBase64Url === b.file_path}
+                        onClick={() => handleCopyZipBase64(b.file_path, `bản build v${b.version}`)}
+                        style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.4)', color: '#38bdf8', fontSize: '12px' }}
+                      >
+                        Copy Base64
+                      </Button>
+                    </div>
                   ) : <span style={{ color: '#64748b', fontStyle: 'italic', fontSize: '13px' }}>Chưa đính kèm tệp tin ZIP</span>}
                 </Col>
                 {b?.file_hash && (
@@ -1263,8 +1350,13 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
           },
           record.file_path ? {
             key: 'download',
-            label: 'Tải gói Offline',
+            label: 'Tải gói Offline (.zip)',
             icon: <DownloadOutlined style={{ color: '#eab308', fontSize: '16px' }} />,
+          } : null,
+          record.file_path ? {
+            key: 'copy_base64',
+            label: 'Copy Base64 (ZIP)',
+            icon: <CopyOutlined style={{ color: '#38bdf8', fontSize: '16px' }} />,
           } : null,
           canDelete ? {
             key: 'delete',
@@ -1283,6 +1375,8 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
             navigate(`/mini-apps/${record.id}/manage`);
           } else if (key === 'download') {
             window.open(record.file_path, '_blank');
+          } else if (key === 'copy_base64') {
+            handleCopyZipBase64(record.file_path, record.name || 'Mini App');
           } else if (key === 'delete') {
             Modal.confirm({
               title: 'Xác nhận xóa Mini App này?',
@@ -1561,19 +1655,31 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                   </Col>
                   <Col span={6}>
                     <Form.Item
-                      label={<span style={{ color: '#e2e8f0' }}>Tải gói Offline</span>}
+                      label={<span style={{ color: '#e2e8f0' }}>Gói Offline (.ZIP / Base64)</span>}
                     >
                       <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.file_path !== currentValues.file_path}>
                         {({ getFieldValue }) => {
                           const filePath = getFieldValue('file_path');
                           return filePath ? (
-                            <Button
-                              icon={<DownloadOutlined />}
-                              onClick={() => window.open(filePath, '_blank')}
-                              style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a' }}
-                            >
-                              Tải về (.zip)
-                            </Button>
+                            <Space.Compact style={{ width: '100%' }}>
+                              <Button
+                                icon={<DownloadOutlined />}
+                                onClick={() => window.open(filePath, '_blank')}
+                                style={{ width: '50%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a', fontSize: '12px' }}
+                              >
+                                Tải (.zip)
+                              </Button>
+                              <Tooltip title="Chuyển đổi file ZIP thành chuỗi Base64 và sao chép vào Clipboard">
+                                <Button
+                                  icon={<CopyOutlined />}
+                                  loading={copyingBase64Url === filePath}
+                                  onClick={() => handleCopyZipBase64(filePath, 'gói Offline')}
+                                  style={{ width: '50%', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.4)', color: '#38bdf8', fontSize: '12px' }}
+                                >
+                                  Base64
+                                </Button>
+                              </Tooltip>
+                            </Space.Compact>
                           ) : (
                             <Button
                               disabled={true}
@@ -1939,13 +2045,23 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                           {({ getFieldValue }) => {
                             const filePath = getFieldValue('file_path');
                             return filePath ? (
-                              <Button
-                                icon={<DownloadOutlined />}
-                                onClick={() => window.open(filePath, '_blank')}
-                                style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a', fontSize: '11px', height: '32px' }}
-                              >
-                                Tải file
-                              </Button>
+                              <Space.Compact style={{ width: '100%' }}>
+                                <Button
+                                  icon={<DownloadOutlined />}
+                                  onClick={() => window.open(filePath, '_blank')}
+                                  style={{ width: '50%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a', fontSize: '11px', height: '32px' }}
+                                >
+                                  Tải file
+                                </Button>
+                                <Button
+                                  icon={<CopyOutlined />}
+                                  loading={copyingBase64Url === filePath}
+                                  onClick={() => handleCopyZipBase64(filePath, 'file ZIP')}
+                                  style={{ width: '50%', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.4)', color: '#38bdf8', fontSize: '11px', height: '32px' }}
+                                >
+                                  Base64
+                                </Button>
+                              </Space.Compact>
                             ) : null;
                           }}
                         </Form.Item>
@@ -2572,19 +2688,31 @@ export default function MiniAppTab({ currentUser, forceFormView, isWorkspaceView
                 </Col>
                 <Col span={6}>
                   <Form.Item
-                    label={<span style={{ color: '#e2e8f0' }}>Tải gói Offline</span>}
+                    label={<span style={{ color: '#e2e8f0' }}>Gói Offline (.ZIP / Base64)</span>}
                   >
                     <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.file_path !== currentValues.file_path}>
                       {({ getFieldValue }) => {
                         const filePath = getFieldValue('file_path');
                         return filePath ? (
-                          <Button
-                            icon={<DownloadOutlined />}
-                            onClick={() => window.open(filePath, '_blank')}
-                            style={{ width: '100%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a' }}
-                          >
-                            Tải về (.zip)
-                          </Button>
+                          <Space.Compact style={{ width: '100%' }}>
+                            <Button
+                              icon={<DownloadOutlined />}
+                              onClick={() => window.open(filePath, '_blank')}
+                              style={{ width: '50%', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', color: '#fef08a', fontSize: '12px' }}
+                            >
+                              Tải (.zip)
+                            </Button>
+                            <Tooltip title="Chuyển đổi file ZIP thành chuỗi Base64 và sao chép vào Clipboard">
+                              <Button
+                                icon={<CopyOutlined />}
+                                loading={copyingBase64Url === filePath}
+                                onClick={() => handleCopyZipBase64(filePath, 'gói Offline')}
+                                style={{ width: '50%', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.4)', color: '#38bdf8', fontSize: '12px' }}
+                              >
+                                Base64
+                              </Button>
+                            </Tooltip>
+                          </Space.Compact>
                         ) : (
                           <Button
                             disabled={true}
