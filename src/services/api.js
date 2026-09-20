@@ -1,66 +1,13 @@
 /**
  * @file api.js
- * @description API Client Service supporting dynamic project environments (365Trade & HomeBooking).
- * Handles authentication token storage, request interception, dynamic base URL switching, and automatic JWT refresh.
+ * @description Simplified API Client Service for MiniApp Dev Portal.
+ * Handles authentication token storage, request interception, and automatic JWT refresh.
  */
 
-import logo365Trade from '../assets/logo-365trade-dev.webp';
-import logoHomeBooking from '../assets/logo-homebooking-dev.webp';
-
-// Available Project Environments
-export const PROJECTS = [
-  {
-    id: '365trade',
-    name: '365Trade',
-    badge: '365Trade Global',
-    logo: logo365Trade,
-    baseUrl: 'https://365trademiniappapidev-production.up.railway.app/api',
-    description: 'Project 365Trade SuperApp & Mini Apps API'
-  },
-  {
-    id: 'homebooking',
-    name: 'HomeBooking',
-    badge: 'HomeBooking Global',
-    logo: logoHomeBooking,
-    baseUrl: 'https://homebookingminiappapidev-production.up.railway.app/api',
-    description: 'Project HomeBooking SuperApp & Mini Apps API'
-  }
-];
-
-const DEFAULT_PROJECT_ID = '365trade';
-
-/**
- * Gets the currently selected project environment configuration.
- * @returns {Object} Selected project object
- */
-export const getSelectedProject = () => {
-  const savedId = localStorage.getItem('selectedProjectId') || DEFAULT_PROJECT_ID;
-  const project = PROJECTS.find(p => p.id === savedId);
-  return project || PROJECTS[0];
-};
-
-/**
- * Sets the active project environment and clears authentication state.
- * @param {string} projectId - Project identifier ('365trade' | 'homebooking')
- */
-export const setSelectedProject = (projectId) => {
-  const target = PROJECTS.find(p => p.id === projectId);
-  if (target) {
-    localStorage.setItem('selectedProjectId', target.id);
-    clearAuthData();
-    window.dispatchEvent(new CustomEvent('project-changed', { detail: target }));
-  }
-};
-
-/**
- * Returns the active API Base URL.
- * @returns {string} Base URL string
- */
 export const getApiBaseUrl = () => {
-  return getSelectedProject().baseUrl;
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 };
 
-// Deprecated constant alias for backwards compatibility
 export const API_BASE_URL = getApiBaseUrl();
 
 // Helper to get authentication data from localStorage
@@ -107,13 +54,12 @@ const onRefreshFailed = (err) => {
 };
 
 /**
- * Core fetch wrapper with dynamic project endpoint routing & automatic token refresh.
+ * Core fetch wrapper with automatic token refresh.
  */
 async function customFetch(endpoint, options = {}) {
   const { accessToken } = getAuthData();
   const baseUrl = getApiBaseUrl();
 
-  // Prepare headers
   const headers = {
     ...options.headers,
   };
@@ -131,12 +77,9 @@ async function customFetch(endpoint, options = {}) {
     headers,
   };
 
-  // Build full URL using current active project base URL
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
-
   let response = await fetch(url, config);
 
-  // If response is 401 or 403 on normal protected routes (NOT auth endpoints), attempt token refresh
   const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register');
 
   if ((response.status === 401 || response.status === 403) && !options._retry && !isAuthEndpoint) {
@@ -162,7 +105,7 @@ async function customFetch(endpoint, options = {}) {
         throw new Error('Phiên làm việc hết hạn');
       }
 
-      const refreshResponse = await fetch(`${baseUrl}/auth/refresh`, {
+      const refreshResponse = await fetch(`${baseUrl}/auth/refresh-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -177,14 +120,10 @@ async function customFetch(endpoint, options = {}) {
       const refreshDataOuter = await refreshResponse.json();
       const refreshPayload = refreshDataOuter.data;
 
-      // Update local storage
-      setAuthData(refreshPayload.user, refreshPayload.accessToken, refreshPayload.refreshToken);
-
-      // Notify all subscribers
+      setAuthData(refreshPayload.user, refreshPayload.accessToken, refreshPayload.refreshToken || refreshToken);
       onRefreshed(refreshPayload.accessToken);
       isRefreshing = false;
 
-      // Retry original request
       config.headers['Authorization'] = `Bearer ${refreshPayload.accessToken}`;
       return await fetch(url, config);
     } catch (err) {
@@ -199,15 +138,15 @@ async function customFetch(endpoint, options = {}) {
   return response;
 }
 
-// API Export Methods
+// Unified API Methods
 export const api = {
   get: async (endpoint, options = {}) => {
     const res = await customFetch(endpoint, { ...options, method: 'GET' });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       throw new Error(data.message || 'Lấy dữ liệu thất bại');
     }
-    return res.json();
+    return data;
   },
 
   post: async (endpoint, body, options = {}) => {
@@ -216,24 +155,24 @@ export const api = {
       method: 'POST',
       body: body instanceof FormData ? body : JSON.stringify(body),
     });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
+      throw new Error(data.message || 'Thao tác thất bại');
     }
-    return res.json();
+    return data;
   },
 
   put: async (endpoint, body, options = {}) => {
     const res = await customFetch(endpoint, {
       ...options,
       method: 'PUT',
-      body: JSON.stringify(body),
+      body: body instanceof FormData ? body : JSON.stringify(body),
     });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       throw new Error(data.message || 'Cập nhật thất bại');
     }
-    return res.json();
+    return data;
   },
 
   delete: async (endpoint, body, options = {}) => {
@@ -242,10 +181,10 @@ export const api = {
       method: 'DELETE',
       body: body ? JSON.stringify(body) : undefined,
     });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       throw new Error(data.message || 'Xóa thất bại');
     }
-    return res.json();
+    return data;
   },
 };
